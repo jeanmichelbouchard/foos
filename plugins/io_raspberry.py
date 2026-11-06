@@ -7,24 +7,27 @@ from .io_base import IOBase
 import foos.config as config
 import foos.process as process
 
+#logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %I:%M:%S %p')
 logger = logging.getLogger(__name__)
 
 #The button should be connected to GND
 class Button:
-    def __init__(self, bus, pin_number, name, debounce_time_ms = 20):
+    def __init__(self, bus, pin_number, name, debounce_time_ms = 10):
         self.pin = pin_number
         self.name = name
         self.bus = bus
         if self.pin:
             GPIO.setup(self.pin, GPIO.IN, pull_up_down = GPIO.PUD_UP)
-            GPIO.add_event_detect(self.pin, GPIO.BOTH, callback = self.button_changed, bouncetime = debounce_time_ms)
+            GPIO.add_event_detect(self.pin, GPIO.FALLING, callback = self.button_changed, bouncetime = debounce_time_ms)
             self.button_state = GPIO.input(self.pin)
+            logger.info("{0} button initial state is {1}".format(self.name, self.button_state))
         else:
             logger.warn("Cannot init button {0}, pin not specified".format(self.name))
         
     def button_changed(self, channel):
         input = GPIO.input(self.pin)
         if input == self.button_state:
+#            logger.info("{0} button is still in state {1}".format(self.name, self.button_state))
             return;
         self.button_state = input
         logger.info("{0} button changed to {1}!".format(self.name, input));
