@@ -183,9 +183,20 @@ class WinnerString:
         for i, team in enumerate(teams):
             self.shapes[team] = []
             for j, winnerString in enumerate(config.winner_strings):
+#                print(winnerString.format(utils.teamName(team).capitalize())) #debug
                 s = FixedOutlineString(font, winnerString.format(utils.teamName(team).capitalize()), outline_size=2, font_size=180, shader=shader)
                 s = Move(Disappear(s.sprite, duration=duration), duration=drop_duration)
                 self.shapes[team].append(s)
+
+#    def __init__(self, shader, teams=["yellow", "black"]):
+#        font = img("Ubuntu-B.ttf")
+#        duration = 5
+#        drop_duration = 0.2
+#        self.shapes = {}
+#        for team in teams:
+#            s = FixedOutlineString(font, "Victoire des {}!".format(utils.teamName(team).capitalize()), outline_size=2, font_size=180, shader=shader)
+#            s = Move(Disappear(s.sprite, duration=duration), duration=drop_duration)
+#            self.shapes[team] = s
 
     def draw(self):
         for team, s in self.shapes.items():
@@ -203,6 +214,15 @@ class WinnerString:
                 for shape in s:
                     shape.hide()
 
+#    def show_winner(self, team):
+#        for t, s in self.shapes.items():
+#            if team == t:
+#                s.position(0, 650, 40)
+#                s.moveTo((0, 330, 40), (1, 1, 1))
+#                s.show()
+#            else:
+#                s.hide()
+
 
 class Gui():
     def __init__(self, scaling_factor, fps, bus, show_leds=False, bg_change_interval=300):
@@ -215,6 +235,8 @@ class Gui():
         self.game_mode = None
         self.draw_menu = False
         self.countdown = None
+        self.stats_visible = False
+        self.pending_stats = None
         self.__init_display(scaling_factor, fps)
         self.__setup_menu()
         self.__setup_sprites()
@@ -222,7 +244,8 @@ class Gui():
 
     def __event_map(self):
         evnt = {'quit': lambda d: self.stop(),
-                'score_changed': lambda d: self.set_state(GuiState(d['yellow'], d['black'], d['last_goal'])),
+                'score_changed': self._score_changed,
+                'match_stats': self._stats_event,
                 "button_will_upload": lambda d: self.feedback.setIcon("will_upload"),
                 "button_will_replay": lambda d: self.feedback.setIcon("will_replay"),
                 "upload_start": lambda d: self.feedback.setIcon("uploading"),
@@ -332,6 +355,10 @@ class Gui():
             scale = (0.2, 0.2, 1.0)
             self.yCounter.moveTo((posx - 65, posy, posz), scale)
             self.bCounter.moveTo((posx + 65, posy, posz), scale)
+        elif self.stats_visible:
+            scale = (0.5, 0.5, 0.5)
+            self.yCounter.moveTo((-380, 380, posz), scale)
+            self.bCounter.moveTo((380, 380, posz), scale)
         else:
             scale = (1, 1, 1)
             self.yCounter.moveTo((-380, 50, posz), scale)
@@ -400,6 +427,11 @@ class Gui():
         self.bPlayers = Multiline(flat, font=playerfont, string=self.getPlayers(left=False),
                                   x=380, y=-250, z=50, justify='C')
 
+        # Match statistics screen (fed by the 'match_stats' event from plugins/goal_analysis.py)
+        blank = "\n".join([" " * 19] * 11)
+        self.yStats = Multiline(flat, font=playerfont, string=blank, x=-380, y=170, z=50, justify='C')
+        self.bStats = Multiline(flat, font=playerfont, string=blank, x=380, y=170, z=50, justify='C')
+
         menufont = OutlineFont(fontfile, (255, 255, 255, 255), font_size=50, image_size=768,
                                codepoints=printable_cps, mipmap=False, filter=GL_LINEAR)
         arrow = load_icon("icons/arrow.png")
@@ -434,6 +466,36 @@ class Gui():
             self.__flash_multiple_red()
 
         logger.info("Wins: {team} {yellow}-{black}".format(**data))
+
+    def _score_changed(self, d):
+        # a new goal ends the statistics screen early
+        if self.stats_visible and (d['yellow'] + d['black']) > 0:
+            self._end_stats()
+        self.set_state(GuiState(d['yellow'], d['black'], d['last_goal']))
+
+    def _stats_event(self, d):
+        # shown once the winner banner is gone
+        self.pending_stats = d
+        self.schedule(time.time() + 5.2, self._start_stats, True)
+
+    def _start_stats(self):
+        try:
+            lines = self.pending_stats['lines']
+            for widget, team in ((self.yStats, 'yellow'), (self.bStats, 'black')):
+                rows = [utils.teamName(team).capitalize()] + lines[team]
+                rows = [r[:19].ljust(19) for r in rows[:11]]
+                rows += [" " * 19] * (11 - len(rows))
+                widget.quick_change("\n".join(rows))
+            self.stats_visible = True
+            self.__move_sprites()
+            self.schedule(time.time() + getattr(config, 'stats_seconds', 15), self._end_stats, True)
+        except Exception:
+            logger.exception("Cannot show match statistics")
+            self.stats_visible = False
+
+    def _end_stats(self):
+        self.stats_visible = False
+        self.__move_sprites()
 
     def _reset_winner(self):
         self.__move_sprites()
@@ -517,8 +579,16 @@ class Gui():
                     self.winner.draw()
                     self.game_mode_ui.quick_change(self.__get_mode_string())
                     self.game_mode_ui.draw()
-                    self.yPlayers.draw()
-                    self.bPlayers.draw()
+                    if self.stats_visible:
+                        try:
+                            self.yStats.draw()
+                            self.bStats.draw()
+                        except Exception:
+                            logger.exception("Match statistics drawing failed, disabling")
+                            self.stats_visible = False
+                    else:
+                        self.yPlayers.draw()
+                        self.bPlayers.draw()
 
                     if self.draw_menu:
                         self.menu.draw()

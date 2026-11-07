@@ -10,7 +10,7 @@ class Plugin:
     sounds = {
         'X_0_win': ['Boxing_arena_sound-Samantha_Enrico-246597508', 'Morse Code-SoundBible.com-810471357'],
         '1_goal_left': ['musical105-loud', 'dun_dun_dun-Delsym-719755295-delayed'],
-        'goal': ['crowd1', 'crowd2'],
+        'goal': ['son1', 'son2','son3','son4','son5','son6','son7','son8','son9','son10','son11','son12','son13','son14','son15','son16','son17','son18','son19','son20','son21','son22','son23','son24','son25','son26','son27','son28','son29','son30','son31','son32','son33'],
         'reset': ['whistle_2short1long'],
         'competition': ['Air Horn-SoundBible.com-964603082-lower'],
         'sudden_death': ['buzzer2'],
@@ -58,6 +58,13 @@ class Plugin:
                     sounds.append('X_0_win')
 
             sounds.append('goal')
+        elif ev.name == 'goal_type':
+            # un fichier sounds/goal_<type>.wav par type de but (slice, wall_shot, chevreuil, one_timer, attack,
+            # defense, center, goalie, own_goal); pas de fichier = silence
+            path = self.sounds_dir + "/goal_{}.wav".format(ev.data['type'])
+            if os.path.exists(path):
+                self.play(path)
+            return
         elif ev.name == 'score_reset':
             sounds.append('reset')
         elif ev.name == 'sudden_death':

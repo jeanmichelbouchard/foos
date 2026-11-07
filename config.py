@@ -5,14 +5,15 @@ from config_base import *
 """ Configure the plugin set """
 
 # -- Enable camera, replays and video motiondetector
-#plugins.update(set(['replay', 'camera', 'motiondetector']))
-#camera_preview = "-p 0,0,128,72"
+plugins.update(set(['replay', 'camera', 'motiondetector']))
 
 # -- Modify this to tune your camera settings - see raspivid --help for more info
-#camera_extra_params = "--ev 7"
-#draw_bg_with_dispmanx = False
+camera_extra_params = "--ev 7"
+draw_bg_with_dispmanx = False
 
 blank_console = False
+
+short_chunks = 10
 
 # -- Enable league sync with server
 #plugins.add('league_sync')
@@ -32,6 +33,12 @@ blank_console = False
 # -- Enable IO using Raspberry Pi. Change pin numbers according to your setup.
 # -- PWM output for the IR led is BCM18 (hardware PWM pin)
 plugins.add('io_raspberry')
+
+# -- Goal type analysis, end-of-match statistics, keyboard feedback
+plugins.add('goal_analysis')
+#goal_service_url = "http://ADRESSE_DU_PORTABLE:8765"   # uncomment once the laptop service runs
+#keyboard_left_team = "black"
+#stats_seconds = 15
 io_raspberry_pins = {
     "irbarrier_team_black": 8,      # Physical pin 8
     "irbarrier_team_yellow": 26,    # Physical pin 26
@@ -52,15 +59,16 @@ team_colors = {"yellow": (0.1, 0.1, 0.4), "black": (0.7, 0, 0)}
 # game modes: tuples of (winning score, timeout in minutes)
 game_modes = [(None, None), (5, None), (7, None), (10, None), (3, 120)]
 
-# Customize winner strings
+# Winner strings
 winner_strings = ["Victoire des {}!","Des kings les {}!","Les {} déchirent!","Trop forts les {}!","Faites place aux {}!","You rock !!!"]
 
 """ Configure paths """
 
 # -- replay path
-replay_save_path = "./replay"
+#replay_path = "./replay"
 replay_fps = 25
-save_replays = True
+save_replays = False   # goal_analysis keeps every goal clip in ./goals (SD card)
+video_fps = 49
 
 # -- or the location of the file_handler
 #log["handlers"]["file_handler"]["filename"] = ""

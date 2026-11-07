@@ -4,27 +4,45 @@ from select import select
 import logging
 logger = logging.getLogger(__name__)
 
+import foos.config as config
+
+# Score: top-row digits, one block of three keys per team, grouped on the side of the
+# keyboard closest to that team (keyboard sits at the end of the table).
+#   left block : 1 = minus, 2 = goal, 3 = plus      right block: 8 = minus, 9 = goal, 0 = plus
+#   5 = ok
+# config.keyboard_left_team (default "black" = the "rouges") says which team the left block drives.
+LEFT_TEAM = getattr(config, "keyboard_left_team", "black")
+RIGHT_TEAM = "yellow" if LEFT_TEAM == "black" else "black"
+
+# Goal-type feedback: one key per type (letters, freed from the old score layout).
+# Emitted as 'goal_type_key' events; a separate plugin applies them to the last goal.
+TYPE_KEYS = {
+    'KEY_G': 'goalie',      # 1_rod
+    'KEY_D': 'defense',     # 2_rod
+    'KEY_E': 'center',      # 5_rod
+    'KEY_T': 'attack',      # 3_rod, none of the special shots below
+    'KEY_P': 'slice',       # pissette
+    'KEY_M': 'wall_shot',   # main courante
+    'KEY_C': 'chevreuil',
+    'KEY_O': 'one_timer',
+    'KEY_A': 'own_goal',    # auto-but
+    'KEY_X': 'ambiguous',
+    'KEY_Z': 'undo',        # cancel the last correction
+}
+
+
 class Plugin(IOBase):
     key_map = {
-        'KEY_KP1': 'yellow_minus',  # KP_1
-        'KEY_KP7': 'yellow_plus',  # KP_7
-        'KEY_KP3': 'black_minus',  # KP_3
-        'KEY_KP9': 'black_plus',  # KP_9
-        'KEY_KP5': 'ok',  # KP_5
-
-        'KEY_Q': 'yellow_plus',  # Q
-        'KEY_E': 'black_plus',  # E
-        'KEY_S': 'ok',  # S
-        'KEY_Z': 'yellow_minus',  # Z
-        'KEY_C': 'black_minus',  # C
+        'KEY_1': LEFT_TEAM + '_minus',
+        'KEY_3': LEFT_TEAM + '_plus',
+        'KEY_8': RIGHT_TEAM + '_minus',
+        'KEY_0': RIGHT_TEAM + '_plus',
+        'KEY_5': 'ok',
     }
 
     goal_map = {
-        'KEY_KP4': 'yellow',  # KP_4
-        'KEY_KP6': 'black',  # KP_6
-
-        'KEY_A': 'yellow',  # A
-        'KEY_D': 'black',  # D
+        'KEY_2': LEFT_TEAM,
+        'KEY_9': RIGHT_TEAM,
     }
 
     def __init__(self, bus):
@@ -64,6 +82,9 @@ class Plugin(IOBase):
             team = self.goal_map[code]
             self.bus.notify('goal_event', {'source': 'keyboard', 'team': team})
             
+        if code in TYPE_KEYS and state == "down":
+            self.bus.notify('goal_type_key', {'source': 'keyboard', 'type': TYPE_KEYS[code]})
+
         if code == 'KEY_DOT':  # PERIOD
             self.bus.notify('quit')
 

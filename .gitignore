@@ -8,3 +8,6 @@ league
 *.so
 *~
 /video/player/player
+
+# Goal clips and journal (goal_analysis plugin)
+goals/
