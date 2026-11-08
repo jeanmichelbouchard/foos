@@ -36,6 +36,7 @@ plugins.add('io_raspberry')
 
 # -- Goal type analysis, end-of-match statistics, keyboard feedback
 plugins.add('goal_analysis')
+plugins.add('match_recorder')   # records the whole match to ./matches (SD card); remove after the test matches
 #goal_service_url = "http://ADRESSE_DU_PORTABLE:8765"   # uncomment once the laptop service runs
 #keyboard_left_team = "black"
 #stats_seconds = 15

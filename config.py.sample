@@ -73,3 +73,4 @@ slack_webhook = 'https://hooks.slack.com/services/BLAW/BLAW'
 #goal_service_timeout = 20
 #keyboard_left_team = "black"                    # team driven by keys 1-2-3 (the other one by 8-9-0)
 #stats_seconds = 15                              # end-of-match statistics screen duration
+#plugins.add('match_recorder')              # whole-match recording to ./matches (see plugins/match_recorder.py)
