@@ -2,6 +2,7 @@ from .io_base import IOBase
 import evdev
 from select import select
 import logging
+import time
 logger = logging.getLogger(__name__)
 
 import foos.config as config
@@ -85,8 +86,12 @@ class Plugin(IOBase):
         if code in TYPE_KEYS and state == "down":
             self.bus.notify('goal_type_key', {'source': 'keyboard', 'type': TYPE_KEYS[code]})
 
-        if code == 'KEY_DOT':  # PERIOD
-            self.bus.notify('quit')
+        if code == 'KEY_DOT' and state == "down":  # PERIOD: three presses within 2 s, to avoid quitting by accident
+            now = time.time()
+            self.dot_presses = [t for t in getattr(self, 'dot_presses', []) if now - t < 2.0] + [now]
+            if len(self.dot_presses) >= 3:
+                from foos.quit import force_quit
+                force_quit(self.bus)
 
     def reader_thread(self):
         # A mapping of file descriptors (integers) to InputDevice instances.
