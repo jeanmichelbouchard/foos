@@ -13,7 +13,7 @@ draw_bg_with_dispmanx = False
 
 blank_console = False
 
-short_chunks = 20   # ~4 s at 49 fps (200 frames, as the model was trained); 10 gave a replay too short to show the shot
+short_chunks = 15   # ~3 s at 49 fps (150 frames); 10 cut the shot, 20 was a bit long
 
 # -- Enable league sync with server
 #plugins.add('league_sync')
