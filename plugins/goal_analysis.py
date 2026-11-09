@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import shutil
+import threading
 import time
 import urllib.request
 
@@ -41,6 +42,7 @@ class Plugin:
         self.last = None        # dernier but: dict
         self.history = []       # corrections du dernier but, pour 'undo'
         self.match = []         # buts du match en cours (pour les statistiques de fin de match)
+        self.pending = []       # analyses en cours (une par but, chacune dans son propre thread)
         bus.subscribe_map({'replay_start': self.on_replay_start,
                            'goal_type_key': self.on_key,
                            'decrement_score': self.on_decrement,
@@ -71,9 +73,13 @@ class Plugin:
         self.history = []
         self.log(event="goal", id=gid, clip=clip, info={k: v for k, v in extra.items() if k != 'type'})
         if self.url and clip:
-            self.analyze(self.last)
+            # son propre thread: l'analyse dure plusieurs secondes et ne doit pas bloquer les touches ni la fin de match
+            t = threading.Thread(target=self.analyze, args=(self.last,), daemon=True)
+            self.pending.append(t)
+            t.start()
 
     def analyze(self, goal):
+        t0 = time.time()
         try:
             with open(goal["clip"], "rb") as f:
                 fps = getattr(config, "video_fps", 49)   # the model is calibrated at 49 fps: the service resamples
@@ -84,7 +90,7 @@ class Plugin:
             self.log(event="analysis_failed", id=goal["id"], error=str(e))
             return
         goal["predicted"] = res.get("type", "unknown")
-        self.log(event="prediction", id=goal["id"], result=res)
+        self.log(event="prediction", id=goal["id"], result=res, round_trip=round(time.time() - t0, 2))
         if goal["source"] == "human":
             return          # un joueur a déjà tranché: la prédiction ne remplace pas son choix
         goal["label"], goal["source"] = goal["predicted"], "model"
@@ -123,6 +129,9 @@ class Plugin:
                 return
 
     def on_win(self, data):
+        for t in list(self.pending):      # attendre les analyses encore en cours pour que les statistiques soient completes
+            t.join(timeout=25)
+        self.pending = [t for t in self.pending if t.is_alive()]
         lines = {t: self.stats_lines(t) for t in ('yellow', 'black')}
         self.log(event="match_end", team=data.get('team'), score={t: data.get(t) for t in ('yellow', 'black')},
                  goals=[{"id": g["id"], "team": g["team"], "label": g["label"], "source": g["source"]} for g in self.match])

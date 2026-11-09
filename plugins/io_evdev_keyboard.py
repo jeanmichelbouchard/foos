@@ -89,6 +89,7 @@ class Plugin(IOBase):
         if code == 'KEY_DOT' and state == "down":  # PERIOD: three presses within 2 s, to avoid quitting by accident
             now = time.time()
             self.dot_presses = [t for t in getattr(self, 'dot_presses', []) if now - t < 2.0] + [now]
+            logger.info("Quit key: press %d/3", len(self.dot_presses))
             if len(self.dot_presses) >= 3:
                 from foos.quit import force_quit
                 force_quit(self.bus)
