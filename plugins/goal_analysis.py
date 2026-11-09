@@ -84,7 +84,7 @@ class Plugin:
             with open(goal["clip"], "rb") as f:
                 fps = getattr(config, "video_fps", 49)   # the model is calibrated at 49 fps: the service resamples
                 req = urllib.request.Request(self.url.rstrip("/") + "/analyze?fps=%s" % fps, data=f.read(), method="POST")
-            res = json.load(urllib.request.urlopen(req, timeout=self.timeout))
+            res = json.loads(urllib.request.urlopen(req, timeout=self.timeout).read().decode("utf-8"))   # json.load(bytes) fails on Python 3.5 (Pi)
         except Exception as e:
             logger.warning("Goal analysis unavailable: %s", e)
             self.log(event="analysis_failed", id=goal["id"], error=str(e))
