@@ -61,6 +61,7 @@ def _kill_all():
             pass
     try:
         subprocess.call(["pkill", "raspivid"], timeout=2)
+        subprocess.call(["pkill", "player"], timeout=2)     # lecteur de replay (couche video par-dessus la console)
     except Exception:
         pass
     os._exit(0)
