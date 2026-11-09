@@ -38,7 +38,7 @@ plugins.add('io_raspberry')
 plugins.add('goal_analysis')
 plugins.add('match_recorder')   # records the whole match to ./matches (SD card); remove after the test matches
 #goal_service_url = "http://ADRESSE_DU_PORTABLE:8765"   # uncomment once the laptop service runs
-#keyboard_left_team = "black"
+keyboard_left_team = "yellow"   # keys 1-2-3 drive the blues (yellow), 8-9-0 the reds (black)
 #stats_seconds = 15
 io_raspberry_pins = {
     "irbarrier_team_black": 8,      # Physical pin 8
