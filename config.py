@@ -36,6 +36,7 @@ plugins.add('io_raspberry')
 
 # -- Goal type analysis, end-of-match statistics, keyboard feedback
 plugins.add('goal_analysis')
+plugins.add('goal_stream')      # sends the camera fragments to the laptop while people are playing (type ready <1 s after a goal)
 plugins.add('match_recorder')   # records the whole match to ./matches (SD card); remove after the test matches
 goal_service_url = "http://192.168.1.140:8765"   # laptop running tools/ball/goal_service.py
 keyboard_left_team = "yellow"   # keys 1-2-3 drive the blues (yellow), 8-9-0 the reds (black)

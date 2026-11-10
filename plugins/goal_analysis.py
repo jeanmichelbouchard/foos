@@ -44,6 +44,7 @@ class Plugin:
         self.match = []         # buts du match en cours (pour les statistiques de fin de match)
         self.pending = []       # analyses en cours (une par but, chacune dans son propre thread)
         bus.subscribe_map({'replay_start': self.on_replay_start,
+                           'score_goal': self.on_score_goal,
                            'goal_type_key': self.on_key,
                            'decrement_score': self.on_decrement,
                            'win_game': self.on_win,
@@ -56,27 +57,76 @@ class Plugin:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     # -- but détecté ----------------------------------------------------------------------------------------------
+    def _stream(self):
+        """Le plugin goal_stream, s'il envoie des fragments en ce moment (analyse en continu)."""
+        try:
+            from plugins import goal_stream
+            gs = goal_stream.INSTANCE
+            return gs if gs is not None and gs.active() and self.url else None
+        except Exception:
+            return None
+
+    def _new_goal(self, team, clip=None, info=None):
+        gid = int(time.time())
+        self.last = {"id": gid, "clip": clip, "label": None, "source": None, "predicted": None, "team": team,
+                     "created": time.time(), "stream_seq": None, "stream_failed": False}
+        self.match.append(self.last)
+        self.history = []
+        self.log(event="goal", id=gid, clip=clip, info=info or {})
+        return self.last
+
+    def _start(self, target, goal):
+        # son propre thread: l'analyse dure plusieurs secondes et ne doit pas bloquer les touches ni la fin de match
+        t = threading.Thread(target=target, args=(goal,), daemon=True)
+        self.pending.append(t)
+        t.start()
+
+    def on_score_goal(self, data):
+        """But compté: si le portable suit la balle en continu, on demande le type tout de suite (moins d'une seconde)."""
+        gs = self._stream()
+        if gs is None:
+            return          # sinon on attend le replay et l'analyse du clip (on_replay_start)
+        goal = self._new_goal(data.get("team"), info={k: v for k, v in data.items() if k != 'type'})
+        goal["stream_seq"] = gs.last_seq()
+        self._start(self.analyze_stream, goal)
+
     def on_replay_start(self, extra):
         if not extra or extra.get('type') != 'goal':
             return
-        gid = int(time.time())
         src = os.path.join(config.replay_path, "replay_short.h264")
-        clip = os.path.join(self.clips_dir, "%d.h264" % gid)
+        g = self.last
+        streamed = g is not None and g["stream_seq"] is not None and g["clip"] is None and time.time() - g["created"] < 30
+        clip = os.path.join(self.clips_dir, "%d.h264" % (g["id"] if streamed else int(time.time())))
         try:
             shutil.copyfile(src, clip)
         except OSError:
             logger.exception("Cannot copy replay clip")
             clip = None
-        self.last = {"id": gid, "clip": clip, "label": None, "source": None, "predicted": None,
-                     "team": extra.get("team")}
-        self.match.append(self.last)
-        self.history = []
-        self.log(event="goal", id=gid, clip=clip, info={k: v for k, v in extra.items() if k != 'type'})
+        if streamed:
+            g["clip"] = clip
+            self.log(event="clip", id=g["id"], clip=clip)
+            if g["stream_failed"] and self.url and clip:
+                self._start(self.analyze, g)        # le suivi en continu a echoue: analyse du clip en secours
+            return
+        goal = self._new_goal(extra.get("team"), clip=clip, info={k: v for k, v in extra.items() if k != 'type'})
         if self.url and clip:
-            # son propre thread: l'analyse dure plusieurs secondes et ne doit pas bloquer les touches ni la fin de match
-            t = threading.Thread(target=self.analyze, args=(self.last,), daemon=True)
-            self.pending.append(t)
-            t.start()
+            self._start(self.analyze, goal)
+
+    def analyze_stream(self, goal):
+        t0 = time.time()
+        try:
+            req = urllib.request.Request(self.url.rstrip("/") + "/goal?last_seq=%d" % goal["stream_seq"], data=b"", method="POST")
+            res = json.loads(urllib.request.urlopen(req, timeout=min(self.timeout, 8)).read().decode("utf-8"))
+            if res.get("error"):
+                raise RuntimeError(res["error"])
+        except Exception as e:
+            logger.warning("Goal stream analysis unavailable: %s", e)
+            self.log(event="analysis_failed", id=goal["id"], error=str(e), mode="stream")
+            goal["stream_failed"] = True
+            if goal["clip"] and self.url:           # le clip est deja la: analyse de secours
+                self.analyze(goal)
+            return
+        self._apply(goal, res, t0)
 
     def analyze(self, goal):
         t0 = time.time()
@@ -89,6 +139,9 @@ class Plugin:
             logger.warning("Goal analysis unavailable: %s", e)
             self.log(event="analysis_failed", id=goal["id"], error=str(e))
             return
+        self._apply(goal, res, t0)
+
+    def _apply(self, goal, res, t0):
         goal["predicted"] = res.get("type", "unknown")
         self.log(event="prediction", id=goal["id"], result=res, round_trip=round(time.time() - t0, 2))
         if goal["source"] == "human":
