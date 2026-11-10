@@ -42,7 +42,9 @@ class Plugin:
         self.frag_dir = os.path.join(config.replay_path, "fragments")
         self.idle_s = 60 * getattr(config, "goal_stream_idle_minutes", 5)
         self.lead = getattr(config, "goal_stream_lead", 20)
-        self.seq = -1                    # dernier fragment termine (compteur a nous, pas le nom du fichier)
+        # dernier fragment termine; compteur a nous (pas le nom du fichier), initialise sur l'heure pour ne jamais repartir de 0
+        # apres un redemarrage de foos-master (le portable detecte aussi un recul et repart de zero)
+        self.seq = int(time.time() * 5) - 1
         self.active_until = 0.0
         self.q = collections.deque(maxlen=40)
         self.cv = threading.Condition()
