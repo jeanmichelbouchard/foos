@@ -44,3 +44,6 @@ score_goal --> plugin goal_analysis --POST /goal?last_seq=N---------------------
 * `plugins/goal_stream.py` (Pi), `plugins/goal_analysis.py` (Pi, appelle `/goal`),
 * `tools/ball/stream_analyzer.py`, `tools/ball/goal_service.py` (portable),
 * bancs d'essai: `tools/ball/replay_match_test.py` (service seul), `tools/ball/test_pi_stream.py` (plugins du Pi).
+
+## Affichage
+Le type de but trouve (ou corrige au clavier) s'affiche en haut de l'ecran, au centre, pendant la reprise puis 3 s apres (`ui.py`: `BANNER_LABELS`, `_goal_type`). Taille et position: `font_size=150` et `self._ftop(130)` dans `__setup_sprites`. Un type inconnu n'affiche rien.

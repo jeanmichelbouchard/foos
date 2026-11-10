@@ -65,6 +65,12 @@ def load_icon(filename, fallback=None):
     return load_texture(filename, i_format=GL_LUMINANCE_ALPHA, fallback=fallback)
 
 
+# Goal-type banner shown at the top of the screen (event 'goal_type' from plugins/goal_analysis.py)
+BANNER_LABELS = {"goalie": "Gardien", "defense": "Défense", "center": "Centre", "attack": "Attaque",
+                 "slice": "Pissette", "wall_shot": "Main courante", "chevreuil": "Chevreuil",
+                 "one_timer": "One-timer", "own_goal": "Auto-but"}
+
+
 class FlatDisk(pi3d.shape.Disk.Disk):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -246,6 +252,7 @@ class Gui():
         evnt = {'quit': lambda d: self.stop(),
                 'score_changed': self._score_changed,
                 'match_stats': self._stats_event,
+                'goal_type': self._goal_type,
                 "button_will_upload": lambda d: self.feedback.setIcon("will_upload"),
                 "button_will_replay": lambda d: self.feedback.setIcon("will_replay"),
                 "upload_start": lambda d: self.feedback.setIcon("uploading"),
@@ -432,6 +439,17 @@ class Gui():
         self.yStats = Multiline(flat, font=playerfont, string=blank, x=-380, y=170, z=50, justify='C')
         self.bStats = Multiline(flat, font=playerfont, string=blank, x=380, y=170, z=50, justify='C')
 
+        self.goal_banners = {}
+        try:
+            bfont = img("Ubuntu-B.ttf")
+            for key, label in BANNER_LABELS.items():
+                sp = FixedOutlineString(bfont, label, outline_size=3, font_size=150, shader=flat).sprite
+                sp.position(0, self._ftop(130), 40)
+                self.goal_banners[key] = Disappear(sp, duration=12, fade=0.5)
+        except Exception:
+            logger.exception("Cannot create goal type banners, disabled")
+            self.goal_banners = {}
+
         menufont = OutlineFont(fontfile, (255, 255, 255, 255), font_size=50, image_size=768,
                                codepoints=printable_cps, mipmap=False, filter=GL_LINEAR)
         arrow = load_icon("icons/arrow.png")
@@ -473,6 +491,18 @@ class Gui():
             self._end_stats()
         self.set_state(GuiState(d['yellow'], d['black'], d['last_goal']))
 
+    def _goal_type(self, d):
+        """Type de but trouve par le modele (ou corrige par un joueur): bandeau en haut de l'ecran pendant la reprise."""
+        shape = self.goal_banners.get(d.get('type'))
+        for b in self.goal_banners.values():
+            b.hide()
+        if shape is not None:
+            shape.show(duration=12, fade=0.5)
+
+    def _banner_active(self):
+        now = time.time()
+        return [b for b in self.goal_banners.values() if b.ts_off > now]
+
     def _stats_event(self, d):
         # shown once the winner banner is gone
         self.pending_stats = d
@@ -511,6 +541,8 @@ class Gui():
     def _handle_replay(self, start):
         self.overlay_mode = start
         self.__move_sprites()
+        for b in self._banner_active():      # le bandeau reste pendant toute la reprise, puis 3 s apres
+            b.show(duration=20 if start else 3, fade=0.5)
         if start:
             self.feedback.setIcon(None)
 
@@ -575,6 +607,13 @@ class Gui():
                 self.people.draw()
                 self.yCounter.draw()
                 self.bCounter.draw()
+                if self.goal_banners:
+                    try:
+                        for b in self.goal_banners.values():
+                            b.draw()
+                    except Exception:
+                        logger.exception("Goal type banner drawing failed, disabling")
+                        self.goal_banners = {}
                 if not self.overlay_mode:
                     self.winner.draw()
                     self.game_mode_ui.quick_change(self.__get_mode_string())
