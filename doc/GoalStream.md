@@ -58,3 +58,12 @@ score_goal --> plugin goal_analysis --POST /goal?last_seq=N---------------------
 * `plugins/goal_stream.py` (Pi), `plugins/goal_analysis.py` (Pi, calls `/goal`), `foos/ui/ui.py` (banner, statistics),
 * `goal_service/` (PC): `goal_service.py`, `stream_analyzer.py`, `analyzer.py`, `tracking.py`, `rules.py`,
 * test benches: `goal_service/tests/replay_match_test.py` (service alone), `goal_service/tests/test_pi_stream.py` (Pi plugins).
+
+## Center-rod goals
+In the author's house rules a goal scored by the center (5-bar) rod does not count, unless it is an own goal. With
+`center_goals_auto_cancel = True` (and `center_cancel_confidence`, default 0.90) `plugins/goal_analysis.py` removes the
+point (`decrement_score`) when the model says "center" with a high confidence, or when a player presses the center key (`c`).
+The banner shows "center goal void" and the statistics list it under "Center (void)". The own-goal key (`a`), or any other
+type key, gives the point back (`increment_score`); `z` undoes the last correction. The model cannot tell an own goal from
+a center goal (51.6 % on own goals), so the players decide. Cancellation is skipped, and the goal flagged for review in the
+journal, when the match has just been won (the score has already been reset). Tests: `goal_service/tests/test_center_cancel.py`.

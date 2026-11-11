@@ -76,4 +76,6 @@ slack_webhook = 'https://hooks.slack.com/services/BLAW/BLAW'
 #plugins.add('match_recorder')              # whole-match recording to ./matches (see plugins/match_recorder.py)
 #plugins.add('goal_stream')               # live fragments to the laptop: goal type in <1 s (needs goal_service_url and a wired link)
 #goal_stream_idle_minutes = 5
-#goal_type_labels = {"goalie": "Gardien", "slice": "Pissette", "own_goal": "Auto-buts", "own_goal_one": "Auto-but"}   # texts shown to the players (default: English)
+#center_goals_auto_cancel = True                # a center-rod goal does not count (own-goal key gives the point back)
+#center_cancel_confidence = 0.90
+#goal_type_labels = {"goalie": "Gardien", "slice": "Pissette", "own_goal": "Auto-buts", "own_goal_one": "Auto-but", "center_void": "Centre annulé", "center_void_one": "But du centre annulé"}   # texts shown to the players (default: English)

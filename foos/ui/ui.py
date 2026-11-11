@@ -66,15 +66,15 @@ def load_icon(filename, fallback=None):
 
 
 # Goal-type banner shown at the top of the screen (event 'goal_type' from plugins/goal_analysis.py).
-# The texts can be overridden in config.py with goal_type_labels (key "own_goal_one" is the singular own goal).
+# The texts can be overridden in config.py with goal_type_labels (keys "own_goal_one" and "center_void_one" are the banner forms).
 BANNER_LABELS = {"goalie": "Goalie", "defense": "Defense", "center": "Center", "attack": "Attack",
                  "slice": "Slice", "wall_shot": "Wall shot", "chevreuil": "Chevreuil",
-                 "one_timer": "One-timer", "own_goal": "Own goal"}
+                 "one_timer": "One-timer", "own_goal": "Own goal", "center_void": "Center goal void"}
 
 
 def banner_label(key):
     labels = getattr(config, "goal_type_labels", {})
-    return labels.get("own_goal_one" if key == "own_goal" else key, BANNER_LABELS[key])
+    return labels.get(key + "_one" if key in ("own_goal", "center_void") else key, BANNER_LABELS[key])
 
 
 class FlatDisk(pi3d.shape.Disk.Disk):
@@ -283,8 +283,9 @@ class Gui():
                 "timeout_close": lambda d: self.__flash_once_yellow()}
 
         if config.show_instructions:
-            evnt["increment_score"] = lambda d: self.instructions.show()
-            evnt["decrement_score"] = lambda d: self.instructions.show()
+            # not for the score changes made automatically by goal_analysis (center goals): nobody pressed a key
+            evnt["increment_score"] = lambda d: None if (d or {}).get('source') else self.instructions.show()
+            evnt["decrement_score"] = lambda d: None if (d or {}).get('source') else self.instructions.show()
 
         return evnt
 

@@ -41,7 +41,12 @@ plugins.add('goal_stream')      # sends the camera fragments to the laptop while
 # Texts shown to the players for the goal types (banner during the replay, end-of-match statistics)
 goal_type_labels = {"goals": "Buts", "goalie": "Gardien", "defense": "Défense", "center": "Centre", "attack": "Attaque",
                     "slice": "Pissette", "wall_shot": "Main courante", "chevreuil": "Chevreuil", "one_timer": "One-timer",
-                    "own_goal": "Auto-buts", "own_goal_one": "Auto-but", "unknown": "Non classés"}
+                    "own_goal": "Auto-buts", "own_goal_one": "Auto-but", "unknown": "Non classés",
+                    "center_void": "Centre annulé", "center_void_one": "But du centre annulé"}
+
+# A goal scored by the center rod does not count (unless it is an own goal: press the own-goal key to give the point back)
+center_goals_auto_cancel = True
+center_cancel_confidence = 0.90
 plugins.add('match_recorder')   # records the whole match to ./matches (SD card); remove after the test matches
 goal_service_url = "http://192.168.50.1:8765"   # laptop running tools/ball/goal_service.py
 keyboard_left_team = "yellow"   # keys 1-2-3 drive the blues (yellow), 8-9-0 the reds (black)
