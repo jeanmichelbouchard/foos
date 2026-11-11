@@ -47,3 +47,6 @@ is about 17 Mbit/s). Allow the port in the PC firewall.
   on that card.
 * About 40 % of goals are currently classified `unknown` (ball not tracked into the goal), and rod/sub-type accuracy
   measured on held-out sessions is about 92 % / 82 %.
+
+## Training
+The models are produced by the scripts in `../goal_training/` (annotation, dataset, ball detector, classifiers).

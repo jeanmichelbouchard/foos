@@ -72,3 +72,5 @@ Made with Pi3d
 An optional extension recognizes the type of every goal (goalie, defense, center, attack, slice, wall shot, chevreuil,
 one-timer) with a camera-based model running on a PC, shows it during the replay and builds end-of-match statistics.
 See [doc/GoalStream.md](doc/GoalStream.md) and [goal_service/README.md](goal_service/README.md).
+
+The models are built with the scripts in [goal_training/](goal_training/README.md).
