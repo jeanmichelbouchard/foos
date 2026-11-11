@@ -76,6 +76,7 @@ slack_webhook = 'https://hooks.slack.com/services/BLAW/BLAW'
 #plugins.add('match_recorder')              # whole-match recording to ./matches (see plugins/match_recorder.py)
 #plugins.add('goal_stream')               # live fragments to the laptop: goal type in <1 s (needs goal_service_url and a wired link)
 #goal_stream_idle_minutes = 5
+#goal_banner_font_size = 112                  # size of the goal-type banner shown during the replay
 #center_goals_auto_cancel = True                # a center-rod goal does not count (own-goal key gives the point back)
 #center_cancel_confidence = 0.90
 #win_check_delay = 5                           # seconds between the end of the replay and the victory (default 2)

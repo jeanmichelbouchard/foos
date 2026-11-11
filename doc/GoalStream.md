@@ -32,8 +32,8 @@ score_goal --> plugin goal_analysis --POST /goal?last_seq=N---------------------
 
 ## Display and keys
 * The goal type found (or corrected on the keyboard) is shown at the top of the screen, in the middle, during the replay
-  and for 3 s after it (`foos/ui/ui.py`: `BANNER_LABELS`, `_goal_type`). Size and position: `font_size=150` and
-  `self._ftop(130)` in `__setup_sprites`. An unknown type shows nothing.
+  and for 3 s after it (`foos/ui/ui.py`: `BANNER_LABELS`, `_goal_type`). Size: `goal_banner_font_size` in
+  `config.py` (default 112; the first version used 150). An unknown type shows nothing.
 * The texts shown to the players (banner and end-of-match statistics) default to English and can be changed with
   `goal_type_labels` in `config.py` (see `config.py.sample`).
 * Keys (plugin `io_evdev_keyboard`): `g` goalie, `d` defense, `c` center, `t` attack, `p` slice, `m` wall shot,

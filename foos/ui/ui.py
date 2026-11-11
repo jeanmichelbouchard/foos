@@ -450,8 +450,9 @@ class Gui():
         try:
             bfont = img("Ubuntu-B.ttf")
             for key in BANNER_LABELS:
-                sp = FixedOutlineString(bfont, banner_label(key), outline_size=3, font_size=150, shader=flat).sprite
-                sp.position(0, self._ftop(130), 40)
+                size = getattr(config, "goal_banner_font_size", 112)      # 112 = 75 % of the first version (150)
+                sp = FixedOutlineString(bfont, banner_label(key), outline_size=3, font_size=size, shader=flat).sprite
+                sp.position(0, self._ftop(size * 0.87), 40)               # keeps the same distance from the top edge
                 self.goal_banners[key] = Disappear(sp, duration=12, fade=0.5)
         except Exception:
             logger.exception("Cannot create goal type banners, disabled")
