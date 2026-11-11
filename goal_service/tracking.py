@@ -1,4 +1,4 @@
-"""Lecture d'un clip, detection de la balle (K meilleures candidates par image) et suivi par continuite."""
+"""Clip reading, ball detection (the K best candidates per frame) and continuity tracking."""
 import cv2
 import numpy as np
 
@@ -17,12 +17,12 @@ def read_frames(path):
 K = 5
 
 
-TRAIN_FPS = 49.0     # cadence des clips d'entraînement: tous les réglages du classement sont en images à 49 i/s
+TRAIN_FPS = 49.0     # frame rate of the training clips: every classification setting is expressed in frames at 49 fps
 TRAIN_FRAMES = 200
 
 
 def resample_to_train_fps(frames, fps):
-    """Ramène un clip filmé à `fps` à ~49 i/s en gardant les ~200 dernières images équivalentes (la fin du clip compte)."""
+    """Bring a clip filmed at `fps` back to ~49 fps, keeping the last ~200 equivalent frames (the end of the clip matters)."""
     if abs(fps - TRAIN_FPS) < 1:
         return frames
     n = len(frames)
@@ -44,14 +44,14 @@ def track_clip_multi(model, path, conf=0.10, imgsz=1280, k=K, fps=TRAIN_FPS):
     return out
 
 
-VMAX = 200.0       # px par image (~9 m/s à 49 i/s sur cette table)
-SLACK = 25.0       # tolérance de position
-GAP = 14           # images manquantes tolérées dans une chaîne
+VMAX = 200.0       # px per frame (~9 m/s at 49 fps on this table)
+SLACK = 25.0       # position tolerance
+GAP = 14           # missing frames tolerated inside a chain
 CONF_MIN = 0.12
-REWARD_BASE = 0.10   # récompense = conf - CONF_BASE... voir ci-dessous
-GAP_COST = 0.15      # pénalité par image manquante
+REWARD_BASE = 0.10   # (unused)
+GAP_COST = 0.15      # penalty per missing frame
 MAX_CHAINS = 3
-MIN_CHAIN = 6        # nombre minimal de détections dans une chaîne conservée
+MIN_CHAIN = 6        # minimum number of detections in a kept chain
 INTERP_CONF = 0.30
 
 
@@ -66,7 +66,7 @@ def _nodes(arr):
 
 
 def _best_chain(nodes, used):
-    """Chaîne de poids maximal (programmation dynamique sur les détections, triées par image)."""
+    """Maximum-weight chain (dynamic programming over the detections, sorted by frame)."""
     n = len(nodes)
     score = np.full(n, -np.inf)
     prev = np.full(n, -1)
@@ -122,21 +122,3 @@ def track_continuous(arr):
                 out[t] = (1, xa + f * (xb - xa), ya + f * (yb - ya), INTERP_CONF)
             out[tb] = (1, xb, yb, cb)
     return out
-
-
-def main(min_chain=None):
-    global MIN_CHAIN
-    if min_chain:
-        MIN_CHAIN = int(min_chain)
-    src = DATA_ROOT / "tracks_top5"
-    dst = DATA_ROOT / "tracks_cont"
-    dst.mkdir(exist_ok=True)
-    n = 0
-    for p in sorted(src.glob("*.npy")):
-        np.save(dst / p.name, track_continuous(np.load(p)))
-        n += 1
-    print("%d clips traités -> %s" % (n, dst))
-
-
-if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else None)

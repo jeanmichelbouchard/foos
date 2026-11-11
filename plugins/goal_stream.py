@@ -1,21 +1,20 @@
-"""Envoie au portable chaque fragment video termine, pour que le type de but soit calcule PENDANT le jeu.
+"""Send every finished video fragment to the PC, so the goal type is computed WHILE the game is played.
 
-La camera ecrit des fragments h264 de 0,2 s (10 images) dans <replay_path>/fragments (en RAM). Chaque fragment est
-autonome. Ce plugin les envoie un par un a goal_service.py (POST /fragment?seq=N) avec un compteur croissant; au moment
-d'un but, goal_analysis demande le type (POST /goal?last_seq=N) et la reponse arrive moins d'une seconde plus tard.
+The camera writes 0.2 s h264 fragments (10 frames) into <replay_path>/fragments (in RAM). Every fragment is
+self-contained. This plugin sends them one by one to goal_service.py (POST /fragment?seq=N) with an increasing counter;
+when a goal is scored, goal_analysis asks for the type (POST /goal?last_seq=N) and the answer arrives less than a second later.
 
-Pour ne pas occuper la carte graphique du portable pendant des heures, l'envoi n'est actif que pendant l'activite:
-mouvement pres de la table, signal IR, ajustement du pointage. Il s'arrete apres goal_stream_idle_minutes sans activite.
-A l'activation, les derniers fragments encore en memoire (goal_stream_lead) sont envoyes d'un coup pour que le premier but
-ait son contexte.
+To avoid keeping the PC's GPU busy for hours, sending is only active during activity: movement near the table, infrared
+signal, score adjustment. It stops after goal_stream_idle_minutes without activity. When it wakes up, the latest fragments
+still in memory (goal_stream_lead) are sent at once so the first goal has its context.
 
-Si le portable ne repond pas, rien ne change pour le jeu: les fragments sont abandonnes (jamais d'attente).
+If the PC does not answer nothing changes for the game: fragments are dropped (never any waiting).
 
-Configuration (config.py): utilise goal_service_url de goal_analysis; tout le reste est optionnel.
-    goal_stream = True              # False = ne pas envoyer de fragments
+Configuration (config.py): uses goal_service_url from goal_analysis; everything else is optional.
+    goal_stream = True              # False = do not send fragments
     goal_stream_idle_minutes = 5
-    goal_stream_lead = 20           # fragments (4 s) envoyes a l'activation
-Activer avec plugins.add('goal_stream') (a cote de plugins.add('goal_analysis')).
+    goal_stream_lead = 20           # fragments (4 s) sent on wake-up
+Enable with plugins.add('goal_stream') (next to plugins.add('goal_analysis')).
 """
 import collections
 import http.client
@@ -29,7 +28,7 @@ import foos.config as config
 
 logger = logging.getLogger(__name__)
 
-INSTANCE = None          # lu par goal_analysis
+INSTANCE = None          # read by goal_analysis
 
 ACTIVITY = ('movement_detected', 'goal_event', 'score_goal', 'increment_score', 'decrement_score', 'button_event')
 
@@ -42,8 +41,8 @@ class Plugin:
         self.frag_dir = os.path.join(config.replay_path, "fragments")
         self.idle_s = 60 * getattr(config, "goal_stream_idle_minutes", 5)
         self.lead = getattr(config, "goal_stream_lead", 20)
-        # dernier fragment termine; compteur a nous (pas le nom du fichier), initialise sur l'heure pour ne jamais repartir de 0
-        # apres un redemarrage de foos-master (le portable detecte aussi un recul et repart de zero)
+        # last finished fragment; our own counter (not the file name), initialised from the clock so it never restarts at 0
+        # after a foos-master restart (the PC also detects a step back and starts over)
         self.seq = int(time.time() * 5) - 1
         self.active_until = 0.0
         self.q = collections.deque(maxlen=40)
@@ -75,7 +74,7 @@ class Plugin:
             self.send_lead()
 
     def send_lead(self):
-        """Fragments deja termines (les plus recents) a envoyer d'un coup au reveil."""
+        """Already finished fragments (the most recent ones) to send at once on wake-up."""
         try:
             with self.cv:
                 recent = list(self.history)[-self.lead:]
@@ -86,10 +85,10 @@ class Plugin:
             logger.exception("goal_stream: lead")
 
     # -- fragments ------------------------------------------------------------------------------------------------
-    history = collections.deque(maxlen=25)      # derniers fragments lus, pour le reveil (25 x 0,4 Mo en memoire)
+    history = collections.deque(maxlen=25)      # last fragments read, for the wake-up (25 x 0.4 MB in memory)
 
     def feed(self, path):
-        """Un fragment est termine: le lire, lui donner son numero, l'envoyer si actif."""
+        """A fragment is finished: read it, give it its number, send it if active."""
         try:
             with open(path, "rb") as f:
                 data = f.read()
@@ -133,7 +132,7 @@ class Plugin:
                 conn.getresponse().read()
                 self.sent += 1
                 self.last_error = None
-            except Exception as e:           # portable absent ou occupe: on abandonne ce fragment, sans jamais attendre
+            except Exception as e:           # PC absent or busy: drop this fragment, never wait
                 if self.last_error is None:
                     logger.warning("goal_stream: send failed: %s", e)
                 self.last_error = str(e)
@@ -145,4 +144,4 @@ class Plugin:
                 conn = None
                 time.sleep(0.5)
                 with self.cv:
-                    self.q.clear()           # on repart du present a la reconnexion
+                    self.q.clear()           # start again from the present on reconnection

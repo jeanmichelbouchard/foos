@@ -1,4 +1,4 @@
-"""Analyse complète d'un clip de but: vidéo -> détection de la balle -> suivi -> type de but.
+"""Full analysis of a goal clip: video -> ball detection -> tracking -> goal type.
 
     a = Analyzer()
     a.analyze("clip.h264")  ->  {"type": "slice", "rod": "attack", "confidence": 0.8, "goal_frame": 123, "goal_side": "left", ...}
@@ -16,14 +16,14 @@ import rules
 from rules import CONF, goal_events
 from tracking import track_clip_multi, track_continuous
 
-# Modeles: ball.pt (detecteur YOLO), rod.joblib, attack.joblib. Dossier par defaut: goal_service/models,
-# ou la variable d'environnement FOOS_MODELS.
+# Models: ball.pt (YOLO detector), rod.joblib, attack.joblib. Default folder: goal_service/models,
+# or the FOOS_MODELS environment variable.
 MODELS_DIR = Path(os.environ.get("FOOS_MODELS", Path(__file__).resolve().parent / "models"))
 
 TYPE_NAMES = {"goalie": "goalie", "defense": "defense", "midfield": "center", "attack": "attack"}
-# Seuils choisis avec calibrate.py (probabilités en validation croisée): la confiance de la tige est peu informative
-# (même à 95 %, 6 % d'erreurs), celle du sous-type l'est un peu plus; en dessous du seuil on annonce « attaque ».
-MIN_CONFIDENCE = 0.50   # tige: en dessous, « unknown »
+# Thresholds chosen with calibrate.py (cross-validated probabilities): the rod confidence is only weakly informative
+# (even at 95 %, 6 % errors), the sub-type confidence a little more; below the threshold we announce plain "attack".
+MIN_CONFIDENCE = 0.50   # rod: below this, "unknown"
 MIN_SUBTYPE_CONFIDENCE = 0.80
 
 
@@ -33,10 +33,10 @@ class Analyzer:
         d = Path(models) if models else MODELS_DIR
         self.rod = joblib.load(d / "rod.joblib")
         self.attack = joblib.load(d / "attack.joblib")
-        self.yolo.predict(np.zeros((720, 1280, 3), np.uint8), imgsz=1280, verbose=False, device=0)  # préchauffage
+        self.yolo.predict(np.zeros((720, 1280, 3), np.uint8), imgsz=1280, verbose=False, device=0)  # warm-up
 
     def analyze(self, path, fps=49.0):
-        """fps: cadence réelle du clip (config.video_fps du Pi); les réglages du classement sont calibrés à 49 i/s."""
+        """fps: real frame rate of the clip (config.video_fps on the Pi); the classification settings are calibrated at 49 fps."""
         t0 = time.time()
         raw = track_clip_multi(self.yolo, path, fps=fps)
         res = self.classify_raw(raw)
@@ -44,7 +44,7 @@ class Analyzer:
         return res
 
     def classify_raw(self, raw):
-        """raw: tableau N x K x 4 des meilleures détections par image (à 49 i/s) -> type du but."""
+        """raw: N x K x 4 array of the best detections per frame (at 49 fps) -> goal type."""
         track = track_continuous(raw)
         c = {"track": track, "det": (track[:, 0] > 0) & (track[:, 3] >= CONF)}
         ev = goal_events(c)

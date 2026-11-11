@@ -1,9 +1,9 @@
-"""Teste les plugins du Pi (goal_stream + goal_analysis) sur le portable, avec un faux bus et une partie enregistrée.
+"""Test the Pi plugins (goal_stream + goal_analysis) on the PC, with a fake bus and a recorded match.
 
-    python test_pi_stream.py <dossier_match> <dossier_repo_foos> [premier_but] [nombre_de_buts] [port]
+    python test_pi_stream.py <match_folder> <foos_repo_folder> [first_goal] [number_of_goals] [port]
 
-Les fragments sont envoyés au rythme de la caméra par goal_stream (feed), les buts sont signalés comme le ferait le jeu
-(score_goal puis, 1 s plus tard, replay_start) et on mesure le délai jusqu'au message 'goal_type'.
+The fragments are fed at the camera's rhythm to goal_stream, the goals are signalled as the game would
+(score_goal, then replay_start 1.2 s later) and the delay until the 'goal_type' message is measured.
 """
 import json
 import shutil
@@ -89,7 +89,7 @@ sched.sort(key=lambda x: x[0])
 sent_goal = {}
 f = open(match_dir / "match.h264", "rb")
 si = 0
-bus.notify("movement_detected", {})            # des joueurs bougent: l'envoi s'active
+bus.notify("movement_detected", {})            # people are moving: streaming becomes active
 for i in range(i0, i1 + 1):
     due = t0 + chunks[i]["mtime"] - base
     while si < len(sched) and sched[si][0] <= due:
@@ -111,18 +111,18 @@ for i in range(i0, i1 + 1):
     p.write_bytes(f.read(sizes[i]))
     gs.feed(str(p))
 time.sleep(6)
-print("fragments envoyés: %d, abandonnés: %d, erreur: %s" % (gs.sent, gs.dropped, gs.last_error))
+print("fragments sent: %d, dropped: %d, error: %s" % (gs.sent, gs.dropped, gs.last_error))
 types_ = [(t, d) for t, ev, d in bus.log if ev == "goal_type"]
 for ev in goals:
     g = gid(ev["ts"])
     t_goal = sent_goal.get(ev["ts"])
-    # le premier goal_type apres ce but
+    # the first goal_type after this goal
     got = next(((t, d) for t, d in types_ if t_goal and t >= t_goal), None)
-    print("but %s: type=%s délai=%.2f s (clip: %s)  mode=%s" % (
+    print("goal %s: type=%s delay=%.2f s (clip: %s)  mode=%s" % (
         time.strftime("%H:%M:%S", time.localtime(ev["ts"])), got[1]["type"] if got else None,
         (got[0] - t_goal) if got else -1, ref.get("%d.h264" % g, {}).get("type") if g else None,
         got[1]["result"].get("mode") if got else None))
     if got:
         types_.remove(got)
 j = [json.loads(l)["event"] for l in open(tmp / "goals" / "journal.jsonl", encoding="utf-8")]
-print("journal du Pi:", j)
+print("Pi journal:", j)

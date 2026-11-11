@@ -1,9 +1,10 @@
-"""Rejoue en temps réel une partie enregistrée par match_recorder contre goal_service.py (analyse en continu).
+"""Replay, in real time, a match recorded by plugins/match_recorder.py against a running goal_service.py (live mode).
 
-    python replay_match_test.py <dossier_match> [premier_but] [nombre_de_buts] [port]
+    python replay_match_test.py <match_folder> [first_goal] [number_of_goals] [port]
 
-Envoie les fragments au rythme d'origine (comme le ferait le Pi), appelle /goal à l'heure de chaque but compté
-(événement score_goal), et compare le type trouvé à celui de l'analyse par clip (goals_analysis.json s'il existe).
+Sends the fragments at the original rhythm (as the Pi would), calls /goal at the time of every counted goal
+(score_goal event) and compares the type found with the one from the clip analysis (goals_analysis.json two folders
+above the match folder, if it exists).
 """
 import http.client
 import json
@@ -49,7 +50,7 @@ def main(match_dir, first=0, count=3, port=8766):
 
     f = open(d / "match.h264", "rb")
     t0 = time.time() + 1.0
-    base = chunks[i0]["mtime"]   # heure d'écriture par la caméra (régulière), pas celle de la copie par le Pi
+    base = chunks[i0]["mtime"]   # time the camera wrote the file (regular), not the time the Pi copied it
     results = []
 
     def call_goal(ev, last_seq):
@@ -84,16 +85,16 @@ def main(match_dir, first=0, count=3, port=8766):
     for tm in timers:
         tm.join()
     time.sleep(3)
-    print("envoi d'un fragment: médiane %.0f ms, max %.0f ms" % (1000 * sorted(late)[len(late) // 2], 1000 * max(late)))
+    print("sending one fragment: median %.0f ms, max %.0f ms" % (1000 * sorted(late)[len(late) // 2], 1000 * max(late)))
     c = http.client.HTTPConnection("127.0.0.1", port)
     c.request("GET", "/health")
     st = json.loads(c.getresponse().read())["stream"]
     print("service:", {k: (round(v, 1) if isinstance(v, float) else v) for k, v in st.items()},
-          "-> détection %.0f ms par fragment (budget 200)" % (st["detect_ms"] / max(st["fragments"], 1)))
+          "-> detection %.0f ms per fragment (budget 200)" % (st["detect_ms"] / max(st["fragments"], 1)))
     for r in sorted(results, key=lambda r: r["ts"]):
         g = gid(r["ts"])
         b = ref.get("%d.h264" % g, {}).get("type") if g else None
-        print("but %s: continu=%s (conf %.2f)  clip=%s  latence=%.2f s (attente %.2f, classement %.2f)  images=%s" % (
+        print("goal %s: live=%s (conf %.2f)  clip=%s  latency=%.2f s (wait %.2f, classify %.2f)  frames=%s" % (
             time.strftime("%H:%M:%S", time.localtime(r["ts"])), r.get("type"), r.get("confidence") or 0, b, r["latency"],
             r.get("waited", 0), r.get("classify", 0), r.get("frames")))
 

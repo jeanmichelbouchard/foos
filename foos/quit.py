@@ -1,11 +1,11 @@
-"""Sortie fiable de foos-master vers la ligne de commande.
+"""Reliable exit from foos-master back to the command line.
 
-L'ancien 'quit' passait par le bus puis DISPLAY.stop() (pi3d) dans le thread du bus: quand l'arret de l'affichage
-bloquait, tout le bus se figeait et le programme ne se terminait jamais. Ici la sortie ne depend ni du bus ni de l'UI:
-un chien de garde tue le processus quoi qu'il arrive.
+The old 'quit' went through the bus and then DISPLAY.stop() (pi3d) in the bus thread: when stopping the display
+blocked, the whole bus froze and the program never ended. Here the exit depends neither on the bus nor on the UI:
+a watchdog kills the process whatever happens.
 
-Sequence: fichier .quit (main.sh ne relance pas foos), demande d'arret propre a l'UI, sauvegarde de l'etat (atexit),
-arret de la camera et des processus enfants, puis os._exit apres au plus WATCHDOG_S secondes.
+Sequence: .quit file (main.sh does not restart foos), request for a clean UI shutdown, state saving (atexit),
+camera and child processes stopped, then os._exit after at most WATCHDOG_S seconds.
 """
 import atexit
 import logging
@@ -28,7 +28,7 @@ def force_quit(bus=None):
     _started = True
     logger.warning("Quit requested")
     try:
-        open(".quit", "w").close()       # lu par main.sh: ne pas relancer foos.py
+        open(".quit", "w").close()       # read by main.sh: do not restart foos.py
     except OSError:
         pass
 
@@ -40,7 +40,7 @@ def force_quit(bus=None):
                 pass
         time.sleep(1)
         try:
-            atexit._run_exitfuncs()      # sauvegarde de l'etat des plugins
+            atexit._run_exitfuncs()      # save the plugins' state
         except Exception:
             logger.exception("exit functions failed")
         _kill_all()
@@ -61,7 +61,7 @@ def _kill_all():
             pass
     try:
         subprocess.call(["pkill", "raspivid"], timeout=2)
-        subprocess.call(["pkill", "player"], timeout=2)     # lecteur de replay (couche video par-dessus la console)
+        subprocess.call(["pkill", "player"], timeout=2)     # replay player (video layer over the console)
     except Exception:
         pass
     os._exit(0)

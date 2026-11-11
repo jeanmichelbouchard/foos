@@ -1,49 +1,60 @@
-# Analyse du type de but en continu (goal_stream)
+# Live goal-type recognition (goal_stream)
 
-## But
-Afficher le type de but (gardien, défense, centre, attaque, pissette, main courante, chevreuil, one-timer) **pendant la
-reprise**, moins d'une seconde après le signal infrarouge, au lieu de 15 à 20 s avec l'envoi du clip après coup.
+## Goal
+Show the type of a goal (goalie, defense, center, attack, slice, wall shot, chevreuil, one-timer) **during the replay**,
+less than a second after the infrared signal, instead of 15 to 20 s when the clip is sent after the fact.
 
-## Principe
-Le modèle tourne sur le portable (GPU). Plutôt que d'attendre le but pour lui envoyer un clip, le Pi lui envoie la vidéo
-**au fur et à mesure**; le portable suit la balle en continu. Au but, il ne reste qu'à classer les dernières images.
+## Principle
+The model runs on a PC (GPU). Instead of waiting for the goal to send it a clip, the Pi sends it the video **as it is
+recorded**; the PC tracks the ball continuously. When a goal is scored only the last frames remain to be classified.
 
 ```
-caméra --(fragments h264 de 0,2 s, en RAM)--> plugin goal_stream --POST /fragment?seq=N--> portable
-                                                                                            décode + détecte la balle
-score_goal --> plugin goal_analysis --POST /goal?last_seq=N-----------------------------> attend 3 fragments, classe
-            <------------------------------- {"type": "slice", ...} (0,7 à 0,9 s) --------
+camera --(0.2 s h264 fragments, in RAM)--> plugin goal_stream --POST /fragment?seq=N--> PC
+                                                                                        decodes + detects the ball
+score_goal --> plugin goal_analysis --POST /goal?last_seq=N-----------------------------> waits for 3 fragments, classifies
+            <------------------------------- {"type": "slice", ...} (0.7 to 0.9 s) ----
 ```
 
-* **Fragments**: la caméra écrit des fichiers `out%04d.h264` de 10 images (0,2 s), chacun autonome (en-têtes + image clé).
-  Les noms tournent sur 100 valeurs; `goal_stream` les numérote avec son propre compteur croissant `seq`.
-* **`/fragment?seq=N`** (Pi → portable): corps = un fragment. Connexion persistante, ~430 Ko, 5 par seconde (~17 Mbit/s):
-  **câble réseau recommandé** (le Wi-Fi 2,4 GHz du Pi 3B ne tiendra pas).
-* **`/goal?last_seq=N`** (Pi → portable): `N` = dernier fragment terminé au moment du but. Le but est dans le fragment
-  suivant (en cours d'écriture); le portable attend 3 fragments de plus (~0,6 s) pour voir la balle absente ≥ 15 images,
-  puis classe les 200 dernières images (même longueur que les clips d'entraînement).
-* **Activité**: l'envoi n'est actif que pendant le jeu (mouvement, IR, pointage) et s'arrête après 5 min sans activité,
-  pour ne pas faire tourner le GPU toute la soirée. À l'activation, les 20 derniers fragments sont envoyés d'un coup.
-* **Secours**: si le suivi en continu échoue (portable absent, erreur), `goal_analysis` retombe sur l'analyse du clip du
-  replay (`POST /analyze`), puis sur rien: le jeu n'attend jamais.
+* **Fragments**: the camera writes `out%04d.h264` files of 10 frames (0.2 s), each self-contained (headers + key frame).
+  The names wrap around after 100 values; `goal_stream` numbers them with its own increasing counter `seq`
+  (initialised from the clock so it never restarts at zero after a restart of foos-master; the PC also detects a
+  counter that goes backwards and starts a new session).
+* **`/fragment?seq=N`** (Pi to PC): body = one fragment. Persistent connection, ~430 KB, 5 per second (~17 Mbit/s):
+  **a wired network link is recommended** (the Wi-Fi of a Pi 3B will not keep up).
+* **`/goal?last_seq=N`** (Pi to PC): `N` = last fragment finished when the goal was counted. The goal is in the next
+  fragment (still being written); the PC waits for 3 more fragments (~0.6 s) to see the ball absent for >= 15 frames,
+  then classifies the last 200 frames (the same length as the training clips). The window stops at a break of more
+  than 3 missing fragments, so frames from another period are never mixed in.
+* **Activity**: sending is only active during play (movement, IR, score adjustments) and stops after 5 minutes without
+  activity, so the GPU does not run all evening. On wake-up the 20 latest fragments are sent at once.
+* **Fallback**: if live tracking fails (PC absent, error), `goal_analysis` falls back to analysing the replay clip
+  (`POST /analyze`), then to nothing: the game never waits.
 
-## Mesures (partie du 2026-11-08, 9 buts, rejouée au rythme de la caméra)
-* Détection: 162 ms par fragment pour un budget de 200 ms (GTX 1650 Ti) → temps réel avec 20 % de marge.
-* Retard de traitement: médiane 0,2 s, maximum 0,5 s.
-* Délai entre le but et le type: **0,74 à 0,90 s**; types identiques à l'analyse du clip dans 9 cas sur 9.
-* Le FP16 est inutilisable sur cette carte (plus lent, résultats invalides); la détection à 1280 px est le plafond.
+## Display and keys
+* The goal type found (or corrected on the keyboard) is shown at the top of the screen, in the middle, during the replay
+  and for 3 s after it (`foos/ui/ui.py`: `BANNER_LABELS`, `_goal_type`). Size and position: `font_size=150` and
+  `self._ftop(130)` in `__setup_sprites`. An unknown type shows nothing.
+* The texts shown to the players (banner and end-of-match statistics) default to English and can be changed with
+  `goal_type_labels` in `config.py` (see `config.py.sample`).
+* Keys (plugin `io_evdev_keyboard`): `g` goalie, `d` defense, `c` center, `t` attack, `p` slice, `m` wall shot,
+  `h` chevreuil, `o` one-timer, `a` own goal, `x` ambiguous, `z` undo. Score keys: `1 2 3` and `8 9 0`
+  (`keyboard_left_team` chooses which team drives the left block).
 
-## Limites connues
-* Le Pi doit envoyer les fragments à cadence régulière: une copie sur la carte SD en même temps (clip de but,
-  `match_recorder`) a produit des retards jusqu'à 6 s. goal_stream lit en RAM et n'écrit rien sur la carte.
-* La fenêtre de classement suppose 49 images/s (`video_fps = 49`).
-* Le cadrage de la caméra doit rester celui de l'entraînement (zones de but en pixels dans `goal_from_track.py`).
-* Non essayé sur le Pi: la surveillance `inotify` du dossier de fragments, le Python 3.5, le réseau filaire.
+## Measurements (match of 2026-11-08, 9 goals, replayed at the camera's pace)
+* Detection: 162 ms per fragment for a budget of 200 ms (GTX 1650 Ti) = real time with a 20 % margin
+  (needs the "High performance" power mode on a laptop).
+* Processing lag: median 0.2 s, maximum 0.5 s.
+* Delay between the goal and the type: **0.74 to 0.90 s**; same types as the clip analysis in 9 cases out of 9.
+* FP16 is unusable on that card (slower, invalid results); detection at 1280 px is the ceiling.
 
-## Fichiers
-* `plugins/goal_stream.py` (Pi), `plugins/goal_analysis.py` (Pi, appelle `/goal`),
-* `tools/ball/stream_analyzer.py`, `tools/ball/goal_service.py` (portable),
-* bancs d'essai: `tools/ball/replay_match_test.py` (service seul), `tools/ball/test_pi_stream.py` (plugins du Pi).
+## Known limits
+* The Pi must send fragments at a regular pace: a copy to the SD card at the same time (goal clip, `match_recorder`)
+  produced delays of up to 6 s. `goal_stream` reads from RAM and writes nothing to the card.
+* The classification window assumes 49 frames/s (`video_fps = 49`).
+* The camera framing must stay the one used for training (goal zones are pixel coordinates in `goal_service/rules.py`).
+* Not yet verified on the Pi itself: the `inotify` watch on the fragment folder and Python 3.5 (the code avoids newer syntax).
 
-## Affichage
-Le type de but trouve (ou corrige au clavier) s'affiche en haut de l'ecran, au centre, pendant la reprise puis 3 s apres (`ui.py`: `BANNER_LABELS`, `_goal_type`). Taille et position: `font_size=150` et `self._ftop(130)` dans `__setup_sprites`. Un type inconnu n'affiche rien.
+## Files
+* `plugins/goal_stream.py` (Pi), `plugins/goal_analysis.py` (Pi, calls `/goal`), `foos/ui/ui.py` (banner, statistics),
+* `goal_service/` (PC): `goal_service.py`, `stream_analyzer.py`, `analyzer.py`, `tracking.py`, `rules.py`,
+* test benches: `goal_service/tests/replay_match_test.py` (service alone), `goal_service/tests/test_pi_stream.py` (Pi plugins).

@@ -1,16 +1,16 @@
-"""Regles de but et caracteristiques de classement (copie fidele des modules de recherche, sans dependance aux donnees).
+"""Goal rules and classification features (a faithful copy of the research modules, without any data dependency).
 
-Les nombres ci-dessous sont lies aux modeles entraines (rod.joblib, attack.joblib): ne les changez pas sans reentrainer.
-Toutes les positions sont en pixels sur une image de 1280 x 720 prise par la camera du Pi a 49 images/s.
+The numbers below are tied to the trained models (rod.joblib, attack.joblib): do not change them without retraining.
+All positions are in pixels on a 1280 x 720 frame from the Pi camera at 49 frames/s.
 """
 import numpy as np
 
-CONF = 0.30      # confiance minimale pour compter une detection comme « balle vue »
+CONF = 0.30      # minimum confidence for a detection to count as "ball seen"
 FPS = 49.0
 
-X_LEFT, X_RIGHT = 240, 1040      # zone de but: x < X_LEFT ou x > X_RIGHT
-Y_MIN, Y_MAX = 230, 500          # ouverture du but (axe vertical)
-MIN_ABSENCE = 15                 # ~0,3 s à 49 images/s
+X_LEFT, X_RIGHT = 240, 1040      # goal zone: x < X_LEFT or x > X_RIGHT
+Y_MIN, Y_MAX = 230, 500          # goal opening (vertical axis)
+MIN_ABSENCE = 15                 # ~0.3 s at 49 frames/s
 
 
 def in_goal_zone(x, y):
@@ -18,7 +18,7 @@ def in_goal_zone(x, y):
 
 
 def goal_events(c, min_absence=MIN_ABSENCE):
-    """Liste des (image_de_disparition, x, y, durée_absence, revient) pour chaque disparition dans une zone de but."""
+    """List of (vanishing_frame, x, y, absence_length, comes_back) for every disappearance inside a goal zone."""
     det, t = c["det"], c["track"]
     n = len(det)
     events, i = [], 0
@@ -41,7 +41,7 @@ ROD_NAMES = ["goalie", "defense", "midfield", "attack"]
 
 
 def canonical(track, f):
-    """Positions (x, y) des images <= f, retournées de 180° si le but est à gauche; NaN si pas de détection."""
+    """Positions (x, y) of frames <= f, rotated by 180 degrees if the goal is on the left; NaN where there is no detection."""
     xy = np.where(track[:, :1] > 0, track[:, 1:3], np.nan).astype(np.float64)
     if track[f, 1] < W / 2:
         xy = np.stack([W - xy[:, 0], H - xy[:, 1]], axis=1)
@@ -58,7 +58,7 @@ def rod_features(c):
     for k in LAGS:
         t = f - k
         feats += list(xy[t]) if t >= 0 else [np.nan, np.nan]
-    # vitesses (px/image) sur 2 images aux mêmes retards
+    # speeds (px/frame) over 2 frames at the same lags
     sp = np.full(len(xy), np.nan)
     sp[2:] = np.hypot(*(xy[2:] - xy[:-2]).T) / 2
     for k in LAGS:
@@ -69,7 +69,7 @@ def rod_features(c):
         i = int(np.nanargmax(win))
         t_peak = max(0, f - 60) + i
         feats += [float(np.nanmax(win)), float(xy[t_peak, 0]), float(f - t_peak)]
-        # point de départ du tir: dernière image avant le pic où la balle était lente (< 35 % du pic)
+        # shot start: last frame before the peak where the ball was slow (< 35 % of the peak)
         slow = np.where(sp[: t_peak + 1] < 0.35 * np.nanmax(win))[0]
         t0 = int(slow.max()) if len(slow) else t_peak
         feats += [float(xy[t0, 0]), float(xy[t0, 1]), float(f - t0)]
@@ -102,24 +102,24 @@ def shape_features(c):
         t0 = int(slow.max()) if len(slow) else t_peak
     else:
         t_peak, peak, t0 = f, np.nan, f
-    # départ du tir
+    # shot start
     out += [xy[t0, 0], xy[t0, 1], min(xy[t0, 1], H - xy[t0, 1])]
-    # direction du tir: angle entre le départ et l'arrivée
+    # shot direction: angle between start and end
     d = xy[f] - xy[t0]
     out += [np.degrees(np.arctan2(d[1], d[0])) if np.isfinite(d).all() else np.nan, float(np.hypot(*d)) if np.isfinite(d).all() else np.nan]
-    # avant le tir (60 images avant le départ): vitesse, mouvement vers le but adverse ou vers nous
+    # before the shot (up to 40 frames before the start): speed, movement towards the opponent's goal or towards ours
     pre = slice(max(0, t0 - 40), t0 + 1)
     out += [np.nanmean(sp[pre]) if np.isfinite(sp[pre]).any() else np.nan,
             np.nanmax(sp[pre]) if np.isfinite(sp[pre]).any() else np.nan,
             np.nanmean(vx[pre]) if np.isfinite(vx[pre]).any() else np.nan,
             np.nanmin(vx[pre]) if np.isfinite(vx[pre]).any() else np.nan]
-    # arrêt avant le tir: nombre d'images lentes (< 3 px/image) dans les 20 images précédant le départ
+    # pause before the shot: number of slow frames (< 3 px/frame) in the 20 frames before the start
     sl = sp[max(0, t0 - 20): t0 + 1]
     out += [float(np.sum(sl < 3)) if np.isfinite(sl).any() else np.nan, float(np.isfinite(sl).sum())]
-    # tir lui-même
+    # the shot itself
     out += [peak, float(f - t0), float(np.nanstd(seg[ok, 1])) if ok.sum() > 2 else np.nan]
     out += [float(np.nanmin(seg[:, 1])) if ok.any() else np.nan, float(np.nanmax(seg[:, 1])) if ok.any() else np.nan]
-    # nombre de retournements de direction en x dans les 90 dernières images (rebonds / interception)
+    # number of direction reversals in x over the last 90 frames (bounces / interception)
     v = vx[lo: f + 1]
     v = v[np.isfinite(v)]
     s = np.sign(v[np.abs(v) > 4]) if len(v) else np.array([])

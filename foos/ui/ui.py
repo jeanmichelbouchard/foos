@@ -65,10 +65,16 @@ def load_icon(filename, fallback=None):
     return load_texture(filename, i_format=GL_LUMINANCE_ALPHA, fallback=fallback)
 
 
-# Goal-type banner shown at the top of the screen (event 'goal_type' from plugins/goal_analysis.py)
-BANNER_LABELS = {"goalie": "Gardien", "defense": "Défense", "center": "Centre", "attack": "Attaque",
-                 "slice": "Pissette", "wall_shot": "Main courante", "chevreuil": "Chevreuil",
-                 "one_timer": "One-timer", "own_goal": "Auto-but"}
+# Goal-type banner shown at the top of the screen (event 'goal_type' from plugins/goal_analysis.py).
+# The texts can be overridden in config.py with goal_type_labels (key "own_goal_one" is the singular own goal).
+BANNER_LABELS = {"goalie": "Goalie", "defense": "Defense", "center": "Center", "attack": "Attack",
+                 "slice": "Slice", "wall_shot": "Wall shot", "chevreuil": "Chevreuil",
+                 "one_timer": "One-timer", "own_goal": "Own goal"}
+
+
+def banner_label(key):
+    labels = getattr(config, "goal_type_labels", {})
+    return labels.get("own_goal_one" if key == "own_goal" else key, BANNER_LABELS[key])
 
 
 class FlatDisk(pi3d.shape.Disk.Disk):
@@ -442,8 +448,8 @@ class Gui():
         self.goal_banners = {}
         try:
             bfont = img("Ubuntu-B.ttf")
-            for key, label in BANNER_LABELS.items():
-                sp = FixedOutlineString(bfont, label, outline_size=3, font_size=150, shader=flat).sprite
+            for key in BANNER_LABELS:
+                sp = FixedOutlineString(bfont, banner_label(key), outline_size=3, font_size=150, shader=flat).sprite
                 sp.position(0, self._ftop(130), 40)
                 self.goal_banners[key] = Disappear(sp, duration=12, fade=0.5)
         except Exception:
@@ -492,7 +498,7 @@ class Gui():
         self.set_state(GuiState(d['yellow'], d['black'], d['last_goal']))
 
     def _goal_type(self, d):
-        """Type de but trouve par le modele (ou corrige par un joueur): bandeau en haut de l'ecran pendant la reprise."""
+        """Goal type found by the model (or corrected by a player): banner at the top of the screen during the replay."""
         shape = self.goal_banners.get(d.get('type'))
         for b in self.goal_banners.values():
             b.hide()
@@ -541,7 +547,7 @@ class Gui():
     def _handle_replay(self, start):
         self.overlay_mode = start
         self.__move_sprites()
-        for b in self._banner_active():      # le bandeau reste pendant toute la reprise, puis 3 s apres
+        for b in self._banner_active():      # the banner stays during the whole replay, then 3 s after it
             b.show(duration=20 if start else 3, fade=0.5)
         if start:
             self.feedback.setIcon(None)

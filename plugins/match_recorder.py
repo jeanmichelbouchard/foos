@@ -1,20 +1,20 @@
-"""Enregistrement d'une partie complete sur la carte SD (pour tester l'analyse des buts sur de vrais matchs).
+"""Record a whole match to the SD card (to test the goal analysis on real matches).
 
-La camera ecrit des fragments h264 (out%04d.h264) dans <replay_path>/fragments, en RAM, avec un anneau de 100 fichiers.
-Ce plugin copie chaque fragment termine (inotify) a la suite d'un seul fichier <dossier>/<date>/match.h264.
-Il note aussi, avec l'heure, chaque fragment (chunks.jsonl) et chaque evenement du jeu (events.jsonl): signal IR brut
-(goal_event, meme s'il est ignore), but compte, ajout/retrait manuel, fin de match. Cela permet de retrouver dans la
-video les buts, les faux declenchements et les buts manques.
+The camera writes h264 fragments (out%04d.h264) into <replay_path>/fragments, in RAM, as a ring of 100 files.
+This plugin appends every finished fragment (inotify) to a single file <folder>/<date>/match.h264.
+It also logs, with the time, every fragment (chunks.jsonl) and every game event (events.jsonl): raw infrared signal
+(goal_event, even if ignored), counted goal, manual add/remove, end of match. This makes it possible to find in the
+video the goals, the false triggers and the missed goals.
 
-Demarrage: au premier signal IR / but / ajustement de la partie. Arret: fin de match (win_game), remise a zero,
-inactivite, duree maximale ou manque d'espace disque.
+Start: at the first infrared signal / goal / score adjustment. Stop: end of match (win_game), score reset, inactivity,
+maximum duration or lack of disk space.
 
-Configuration (config.py), tout est optionnel; activer avec plugins.add('match_recorder'):
+Configuration (config.py), everything is optional; enable with plugins.add('match_recorder'):
     match_record_path = "./matches"
-    match_record_max_minutes = 40        # arret de securite
-    match_record_idle_minutes = 6        # arret apres ce temps sans evenement
-    match_record_min_free_gb = 3         # arret si l'espace libre passe sous ce seuil
-    match_record_lead_chunks = 15        # fragments deja en memoire copies au demarrage
+    match_record_max_minutes = 40        # safety stop
+    match_record_idle_minutes = 6        # stop after this time without any event
+    match_record_min_free_gb = 3         # stop when free space falls below this
+    match_record_lead_chunks = 15        # fragments already in memory that are copied at the start
 """
 import json
 import logging
@@ -48,7 +48,7 @@ class Plugin:
         bus.subscribe_map({ev: (lambda d, ev=ev: self.on_event(ev, d)) for ev in EVENTS}, thread=True)
         threading.Thread(target=self.watch, daemon=True).start()
 
-    # -- evenements du jeu ----------------------------------------------------------------------------------------
+    # -- game events ----------------------------------------------------------------------------------------
     def on_event(self, name, data):
         with self.lock:
             if self.video is None and name in START_EVENTS:
@@ -71,10 +71,10 @@ class Plugin:
         self.video = open(os.path.join(self.dir, "match.h264"), "ab")
         self.t0 = self.last_event = time.time()
         logger.info("Match recorder: recording to %s", self.dir)
-        try:    # fragments deja termines (les dernieres secondes avant le premier evenement)
+        try:    # already finished fragments (the last seconds before the first event)
             frags = sorted((f for f in os.listdir(self.frag_dir) if f.startswith("out") and f.endswith(".h264")),
                            key=lambda f: os.path.getmtime(os.path.join(self.frag_dir, f)))
-            for f in frags[-(self.lead + 1):-1]:     # le dernier est peut-etre en cours d'ecriture
+            for f in frags[-(self.lead + 1):-1]:     # the last one may still be being written
                 self.copy(f, lead=True)
         except OSError:
             logger.exception("Match recorder: cannot copy lead fragments")

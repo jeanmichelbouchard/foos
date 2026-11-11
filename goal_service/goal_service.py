@@ -1,15 +1,15 @@
-"""Service HTTP d'analyse des buts, à lancer sur le portable.
+"""HTTP goal-analysis service, to run on the laptop / PC.
 
     python goal_service.py [port=8765]
 
   GET  /health   -> {"ok": true, "stream": {...}}
-  POST /analyze  -> corps = fichier .h264 brut; réponse = JSON de Analyzer.analyze (type du but, confiance...)
+  POST /analyze  -> body = raw .h264 file; response = JSON from Analyzer.analyze (goal type, confidence...)
 
-Analyse en continu (voir stream_analyzer.py), pour que le type soit prêt presque tout de suite après le but:
-  POST /fragment?seq=N     -> corps = un fragment .h264 (10 images) terminé sur le Pi; N = compteur croissant
-  POST /goal?last_seq=N    -> N = dernier fragment terminé au signal IR; réponse = type du but (attend ~0,6 s de plus)
+Live analysis (see stream_analyzer.py), so that the goal type is ready almost immediately after the goal:
+  POST /fragment?seq=N     -> body = one .h264 fragment (10 frames) finished on the Pi; N = increasing counter
+  POST /goal?last_seq=N    -> N = last fragment finished at the infrared signal; response = goal type (waits ~0.6 s more)
 
-Le Pi envoie le clip au signal infrarouge; s'il n'y a pas de réponse à temps, foos-master continue comme avant.
+If there is no answer in time, foos-master carries on as before.
 """
 import json
 import sys
@@ -22,13 +22,13 @@ from urllib.parse import parse_qs, urlparse
 from analyzer import Analyzer
 from stream_analyzer import StreamAnalyzer
 
-LOCK = threading.Lock()   # un seul clip à la fois sur la carte graphique
+LOCK = threading.Lock()   # one job at a time on the GPU
 ANALYZER = None
 STREAM = None
 
 
 class Handler(BaseHTTPRequestHandler):
-    protocol_version = "HTTP/1.1"      # connexion persistante: un fragment toutes les 0,2 s
+    protocol_version = "HTTP/1.1"      # persistent connection: one fragment every 0.2 s
 
     def _send(self, code, obj):
         body = json.dumps(obj).encode()
@@ -67,7 +67,7 @@ class Handler(BaseHTTPRequestHandler):
                 res = STREAM.analyze_goal(int(q["last_seq"][0]), extra=int(q.get("extra", ["3"])[0]))
             except Exception as e:
                 return self._send(500, {"type": "unknown", "error": str(e)})
-            print("but (continu): %s" % res, flush=True)
+            print("goal (live): %s" % res, flush=True)
             return self._send(200, res)
         if route != "/analyze":
             return self._send(404, {"error": "not found"})
@@ -78,9 +78,9 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 with LOCK:
                     res = ANALYZER.analyze(str(p), fps=fps)
-            except Exception as e:   # ne jamais faire planter le jeu
+            except Exception as e:   # never let the game crash
                 return self._send(500, {"type": "unknown", "error": str(e)})
-        print("analysé: %s" % res, flush=True)
+        print("analyzed: %s" % res, flush=True)
         self._send(200, res)
 
     def log_message(self, *a):
@@ -91,7 +91,7 @@ def main(port=8765):
     global ANALYZER, STREAM
     ANALYZER = Analyzer()
     STREAM = StreamAnalyzer(ANALYZER, LOCK)
-    print("prêt sur le port %d" % port, flush=True)
+    print("ready on port %d" % port, flush=True)
     ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
 
 
