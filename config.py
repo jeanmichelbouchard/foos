@@ -44,6 +44,10 @@ goal_type_labels = {"goals": "Buts", "goalie": "Gardien", "defense": "Défense",
                     "own_goal": "Auto-buts", "own_goal_one": "Auto-but", "unknown": "Non classés",
                     "center_void": "Centre annulé", "center_void_one": "But du centre annulé"}
 
+# Size of the goal-type banner shown at the top of the screen during the replay (font size in points).
+# Default 112. Make it larger (e.g. 150) or smaller (e.g. 90) by removing the "#" and changing the value.
+#goal_banner_font_size = 112
+
 # A goal scored by the center rod does not count (unless it is an own goal: press the own-goal key to give the point back)
 center_goals_auto_cancel = True
 # Grace period before the victory is declared, so the last point can still be removed (during the replay and after it)
