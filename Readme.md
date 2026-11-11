@@ -66,3 +66,9 @@ Big thanks to:
 Made with Pi3d
 
 [![Pi3d logo](https://raw.githubusercontent.com/tipam/pi3d/master/images/rpilogoshad128.png)](https://pi3d.github.io/)
+
+## Goal-type recognition (optional)
+
+An optional extension recognizes the type of every goal (goalie, defense, center, attack, slice, wall shot, chevreuil,
+one-timer) with a camera-based model running on a PC, shows it during the replay and builds end-of-match statistics.
+See [doc/GoalStream.md](doc/GoalStream.md) and [goal_service/README.md](goal_service/README.md).

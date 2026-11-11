@@ -1,0 +1,10 @@
+# Laptop / PC side of the goal-type recognition (not needed on the Raspberry Pi)
+# For GPU inference install PyTorch from https://pytorch.org first (CUDA build), then:
+ultralytics>=8.3      # YOLO11 ball detector (AGPL-3.0 licensed)
+torch
+torchvision
+av                    # in-memory H.264 decoding for the live stream mode
+opencv-python         # clip decoding for the /analyze (clip upload) mode
+numpy
+scikit-learn
+joblib

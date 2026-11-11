@@ -1,0 +1,4 @@
+__pycache__/
+# trained models are distributed separately (see models/README.md)
+models/*.pt
+models/*.joblib
