@@ -78,4 +78,6 @@ slack_webhook = 'https://hooks.slack.com/services/BLAW/BLAW'
 #goal_stream_idle_minutes = 5
 #center_goals_auto_cancel = True                # a center-rod goal does not count (own-goal key gives the point back)
 #center_cancel_confidence = 0.90
+#win_check_delay = 5                           # seconds between the end of the replay and the victory (default 2)
+#win_hold_max = 10                             # wait at most this long for the goal analysis before declaring a victory
 #goal_type_labels = {"goalie": "Gardien", "slice": "Pissette", "own_goal": "Auto-buts", "own_goal_one": "Auto-but", "center_void": "Centre annulé", "center_void_one": "But du centre annulé"}   # texts shown to the players (default: English)

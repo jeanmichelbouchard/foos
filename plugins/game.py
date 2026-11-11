@@ -15,7 +15,13 @@ class Plugin:
         self.bus.subscribe(self.process_event, thread=True)
         self.game_win_score = None
         self.check_win_time = None
-        self.check_delay = 2
+        # Grace period between the end of the replay and the victory: the players can still remove the last point
+        # (minus key, or the center key). Default 2 s; raise it with win_check_delay in config.py.
+        self.check_delay = getattr(config, "win_check_delay", 2)
+        # The victory also waits (at most win_hold_max seconds) for the goal analysis announced by plugins/goal_analysis.py,
+        # which may cancel the point (center goal).
+        self.hold_max = getattr(config, "win_hold_max", 10)
+        self.hold_until = 0
         self.current_score = {}
         self.party_timeout = None
         self.game_end_time = None
@@ -34,6 +40,10 @@ class Plugin:
         if ev.name == "score_changed":
             self.check_win_time = now + self.check_delay
             self.current_score = ev.data
+        if ev.name == "goal_analysis_pending":
+            self.hold_until = now + self.hold_max
+        if ev.name == "goal_analysis_done":
+            self.hold_until = 0
         if ev.name == "replay_start":
             # wait for replay_end rather than checking it with a specific delay
             self.check_win_time = None
@@ -86,7 +96,7 @@ class Plugin:
     def __run(self):
         while True:
             now = time.time()
-            if self.check_win_time and now > self.check_win_time:
+            if self.check_win_time and now > self.check_win_time and now > self.hold_until:
                 self.check_win_time = None
                 if self.sudden_death:
                     self.check_party_win()

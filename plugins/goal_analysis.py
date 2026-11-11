@@ -105,6 +105,9 @@ class Plugin:
 
     def on_score_goal(self, data):
         """Goal counted: if the PC follows the ball live, ask for the type right away (under a second)."""
+        if self.url and self.cancel_enabled:
+            # the game plugin will not declare a victory until the analysis is done (a center goal may be cancelled)
+            self.bus.notify('goal_analysis_pending', {'team': data.get("team")})
         gs = self._stream()
         if gs is None:
             return          # otherwise wait for the replay and analyse the clip (on_replay_start)
@@ -160,10 +163,21 @@ class Plugin:
         except Exception as e:
             logger.warning("Goal analysis unavailable: %s", e)
             self.log(event="analysis_failed", id=goal["id"], error=str(e))
+            self._release_hold()
             return
         self._apply(goal, res, t0)
 
+    def _release_hold(self):
+        if self.url and self.cancel_enabled:
+            self.bus.notify('goal_analysis_done', {})
+
     def _apply(self, goal, res, t0):
+        try:
+            self._apply_result(goal, res, t0)
+        finally:
+            self._release_hold()
+
+    def _apply_result(self, goal, res, t0):
         goal["predicted"] = res.get("type", "unknown")
         self.log(event="prediction", id=goal["id"], result=res, round_trip=round(time.time() - t0, 2))
         if goal["source"] == "human":

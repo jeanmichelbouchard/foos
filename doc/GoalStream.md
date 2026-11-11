@@ -67,3 +67,13 @@ The banner shows "center goal void" and the statistics list it under "Center (vo
 type key, gives the point back (`increment_score`); `z` undoes the last correction. The model cannot tell an own goal from
 a center goal (51.6 % on own goals), so the players decide. Cancellation is skipped, and the goal flagged for review in the
 journal, when the match has just been won (the score has already been reset). Tests: `goal_service/tests/test_center_cancel.py`.
+
+## Grace period before a victory
+If the last point is a center goal, the match must not end before the players (or the model) can remove it.
+* `plugins/game.py` already waits for the end of the replay before declaring a victory; the delay after the replay is now
+  configurable (`win_check_delay`, default 2 s; 5 s in the author's `config.py`). During the replay and this delay the
+  players can remove the point with the minus key of the team, or press the center key (`c`).
+* `plugins/goal_analysis.py` announces `goal_analysis_pending` when a goal is counted and `goal_analysis_done` when the
+  analysis (and a possible cancellation) is finished; the game waits for it, at most `win_hold_max` seconds (default 10).
+  This covers the slow fallback (clip analysis, 15 s or more), where the answer would otherwise arrive after the victory.
+* Tests: `goal_service/tests/test_win_grace.py`.

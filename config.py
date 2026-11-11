@@ -46,6 +46,9 @@ goal_type_labels = {"goals": "Buts", "goalie": "Gardien", "defense": "Défense",
 
 # A goal scored by the center rod does not count (unless it is an own goal: press the own-goal key to give the point back)
 center_goals_auto_cancel = True
+# Grace period before the victory is declared, so the last point can still be removed (during the replay and after it)
+win_check_delay = 5          # seconds after the end of the replay (default 2)
+win_hold_max = 10            # at most this long, waiting for the goal analysis
 center_cancel_confidence = 0.90
 plugins.add('match_recorder')   # records the whole match to ./matches (SD card); remove after the test matches
 goal_service_url = "http://192.168.50.1:8765"   # laptop running tools/ball/goal_service.py
