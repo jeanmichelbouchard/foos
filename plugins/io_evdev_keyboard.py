@@ -20,11 +20,11 @@ RIGHT_TEAM = "yellow" if LEFT_TEAM == "black" else "black"
 TYPE_KEYS = {
     'KEY_G': 'goalie',      # 1_rod
     'KEY_D': 'defense',     # 2_rod
-    'KEY_E': 'center',      # 5_rod
+    'KEY_C': 'center',      # 5_rod (centre)
     'KEY_T': 'attack',      # 3_rod, none of the special shots below
     'KEY_P': 'slice',       # pissette
     'KEY_M': 'wall_shot',   # main courante
-    'KEY_C': 'chevreuil',
+    'KEY_H': 'chevreuil',
     'KEY_O': 'one_timer',
     'KEY_A': 'own_goal',    # auto-but
     'KEY_X': 'ambiguous',
