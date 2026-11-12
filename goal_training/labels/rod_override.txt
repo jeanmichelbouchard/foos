@@ -1,0 +1,4 @@
+# Clips whose folder does not give the rod that really scored: 'file : rod' (goalie, defense, midfield, attack).
+# Reviewed by eye on 2026-11-12.
+1647558700_replay_short.h264 : attack   # own goal: shot by the attack, bounced off the end wall next to the goal and came back
+1647567452_replay_short.h264 : attack   # own goal: shot by the attack, passively deflected by the defenders of the same team

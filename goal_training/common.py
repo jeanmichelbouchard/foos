@@ -38,15 +38,30 @@ def read_tag_file(name):
     return out
 
 
+def read_rod_overrides():
+    """Read labels/rod_override.txt: 'file : rod' lines that correct the rod given by the clip's folder
+    (rod = goalie, defense, midfield or attack). Text after '#' is a comment."""
+    path = LABELS_DIR / "rod_override.txt"
+    out = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.split("#")[0].strip().lstrip("﻿")
+            if ":" in line:
+                name, rod = (s.strip() for s in line.split(":", 1))
+                out[name] = rod
+    return out
+
+
 def list_clips():
     """Return the list of clips (dicts) with rod class, sub-type, session and ball condition."""
     corkball = read_tag_file("corkball.txt")
     redball = read_tag_file("redball.txt")
     autogoal = read_tag_file("autogoal.txt")
+    overrides = read_rod_overrides()
     clips = []
     for path in sorted(VIDEO_ROOT.rglob("*.h264")):
         rel = path.relative_to(VIDEO_ROOT).parts
-        rod = ROD_BY_FOLDER.get(rel[0], rel[0])
+        rod = overrides.get(path.name, ROD_BY_FOLDER.get(rel[0], rel[0]))
         subtype = rel[1] if len(rel) > 2 else ""
         ts = int(path.name.split("_")[0])
         ball = "cork" if path.name in corkball else "red" if path.name in redball else "white"

@@ -1,5 +1,3 @@
-﻿1637993602_replay_long.h264
-1637993602_replay_short.h264
 1637993690_replay_long.h264
 1637993690_replay_short.h264
 1639882136_replay_short.h264
@@ -10,7 +8,6 @@
 1642221740_replay_short.h264
 1642222848_replay_short.h264
 1642824229_replay_short.h264
-1646448824_replay_short.h264
 1646449188_replay_short.h264
 1647557979_replay_short.h264
 1647558596_replay_short.h264
