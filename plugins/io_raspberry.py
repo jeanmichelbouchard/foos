@@ -40,21 +40,46 @@ class Button:
             GPIO.remove_event_detect(self.pin)
 
 class GoalDetector:
+    """Goal detector made of a 38 kHz IR led and a TSSP58038 receiver (output LOW while it sees the 38 kHz light).
+
+    Two ways to mount them, selected with ir_barrier_reflective in config.py:
+
+    False (default): light barrier. Led and receiver face each other across the ball channel. The receiver sees the
+        light all the time (LOW); the ball cuts it (HIGH) and the goal is the falling edge, when the light comes back
+        behind the ball.
+    True: reflective. Led and receiver sit side by side on the same wall, shielded from each other. The receiver sees
+        nothing at rest (HIGH); the goal is the falling edge, when the ball sends the light back to the receiver.
+
+    The edge is the same in both modes. The reflection of a rolling ball flickers, so the reflective mode ignores further
+    edges for a longer time and checks that the receiver still sees the light a moment later (no goal on a glitch).
+    """
+    BARRIER_BOUNCE_MS = 10
+    REFLECTIVE_BOUNCE_MS = 300
+    REFLECTIVE_CONFIRM_S = 0.002
+
     def __init__(self, bus, pin_number, team):
         self.bus = bus
         self.pin = pin_number
         self.team = team
+        self.reflective = bool(getattr(config, "ir_barrier_reflective", False))
         if self.pin:
             #GPIO.setup(self.pin, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
             GPIO.setup(self.pin, GPIO.IN, pull_up_down = GPIO.PUD_UP)
-            GPIO.add_event_detect(self.pin, GPIO.FALLING, callback=self.on_goal, bouncetime=10)
+            bounce = self.REFLECTIVE_BOUNCE_MS if self.reflective else self.BARRIER_BOUNCE_MS
+            GPIO.add_event_detect(self.pin, GPIO.FALLING, callback=self.on_goal, bouncetime=bounce)
+            logger.info("Goal detector {0}: {1} mode".format(self.team, "reflective" if self.reflective else "light barrier"))
         else:
             logger.warn("Cannot init GoalDetector {0}, pin not specified".format(self.team))
     def __del__(self):
         if self.pin:
             GPIO.remove_event_detect(self.pin)
-            
+
     def on_goal(self, channel):
+        if self.reflective:
+            time.sleep(self.REFLECTIVE_CONFIRM_S)
+            if GPIO.input(self.pin):
+                logger.info("Goal detector {}: reflection too short, ignored".format(self.team))
+                return
         logger.info("Goal {}!".format(self.team))
         self.bus.notify('goal_event', {'source': 'rpi', 'team': self.team})
 

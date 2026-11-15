@@ -37,6 +37,11 @@ from config_base import *
 #    "black_minus": 22,              # Physical pin 22
 #    "ok_button": 24,                # Physical pin 24
 #}
+# How the goal detectors (38 kHz IR led + TSSP58038 receiver) are mounted in the ball channel.
+# False (default): light barrier, led and receiver face each other, a goal is detected when the ball cuts the light.
+# True: reflective, led and receiver side by side on the same wall, a goal is detected when the ball reflects the light
+# back to the receiver.
+#ir_barrier_reflective = False
 
 # -- Modify clock format: see strftime
 #clock_format = "%-I:%M %p" # 12 hour format
