@@ -93,6 +93,27 @@ Thanks to Adam Bartha for this!
 
 ![schematic](foos_RPi_only_schema.png)
 
+### Variant: leds in series with a range trimmer (light barrier or reflective detector)
+
+In the schematic above the PNP transistor has its emitter on 5 V and its base driven by a 3.3 V GPIO, so it never switches
+off completely. That goes unnoticed with two leds at full power, but not when the IR power must be turned down.
+
+The variant below puts the two leds in series (same current in both), adds one trimmer that sets the IR power of both goals,
+and wires the 2N3906 as an emitter follower so the leds really switch off. It serves both mounting modes of the goal
+detectors, selected with `ir_barrier_reflective` in config.py:
+
+ * light barrier (`False`): led and receiver face each other across the ball channel; trimmer at 0 Ω.
+ * reflective (`True`): led and receiver side by side on the same wall, nothing to align and no hole to drill. Raise the
+   trimmer until the opposite wall no longer triggers a goal, then check that the ball still does.
+
+![schematic](goal_detector_circuit.png)
+
+Printable version: [goal_detector_circuit.pdf](goal_detector_circuit.pdf) (drawn by `hardware/goal_detector_circuit/draw_circuit.py`).
+
+A printable mount for the reflective detector (led and receiver side by side, bevelled ends so the ball slides past it) is
+in `hardware/ir_reflective_mount/`: `ir_reflective_mount.stl`, the script that generates it (`make_mount.py`, dimensions at
+the top) and `ir_test_plate_40x40x2.stl`, a plate to check that your filament blocks infrared before printing the mount.
+
 ## BOM
 
  * [Raspberry Pi2](https://www.raspberrypi.org/products/raspberry-pi-2-model-b/)
