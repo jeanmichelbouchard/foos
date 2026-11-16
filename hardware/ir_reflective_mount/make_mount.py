@@ -36,6 +36,8 @@ RX_X = 9.0               # receiver position along the block
 RX_W = 5.6               # slot width  (TSSP58038 body measured: 5.0 mm wide, + foil tape)
 RX_T = 5.2               # slot thickness along z (body measured: 4.8 mm with the lens)
 RX_FLOOR = AXIS_Y - 3.5  # the receiver body (7 mm high, measured) rests here
+RX_BODY_H = 7.3          # above this height the slot only holds the legs
+RX_LEGS_W = 6.8          # slot width around the legs (they splay out to 5.8 mm, measured)
 FRONT_WALL = 2.0         # plastic in front of the receiver = depth of the window (a small hood)
 WIN_W, WIN_H = 4.0, 6.5   # narrower than the body: the receiver cannot fall out through the window
 
@@ -62,7 +64,8 @@ def solid(x, y, z):
     s &= ~(r < LED_IRIS / 2)
     s &= ~((np.abs(x - LED_X) < GROOVE_W / 2) & (y > AXIS_Y) & (z < GROOVE_DEPTH))
     z0 = DEPTH - FRONT_WALL - RX_T
-    s &= ~((np.abs(x - RX_X) < RX_W / 2) & (y > RX_FLOOR) & (z > z0) & (z < DEPTH - FRONT_WALL))
+    w = np.where(y > RX_FLOOR + RX_BODY_H, RX_LEGS_W, RX_W)
+    s &= ~((np.abs(x - RX_X) < w / 2) & (y > RX_FLOOR) & (z > z0) & (z < DEPTH - FRONT_WALL))
     s &= ~((np.abs(x - RX_X) < WIN_W / 2) & (y > RX_FLOOR + 0.5) & (y < RX_FLOOR + 0.5 + WIN_H) & (z >= DEPTH - FRONT_WALL))
     return s
 
@@ -70,8 +73,8 @@ def solid(x, y, z):
 def grid():
     fine = lambda c, r: np.arange(c - r, c + r + 1e-9, CIRCLE_STEP)
     xs = [-LENGTH / 2, -WIDTH / 2, WIDTH / 2, LENGTH / 2, LED_X - GROOVE_W / 2, LED_X + GROOVE_W / 2,
-          RX_X - RX_W / 2, RX_X + RX_W / 2, RX_X - WIN_W / 2, RX_X + WIN_W / 2]
-    ys = [0, HEIGHT, AXIS_Y, RX_FLOOR, RX_FLOOR + 0.5, RX_FLOOR + 0.5 + WIN_H]
+          RX_X - RX_W / 2, RX_X + RX_W / 2, RX_X - WIN_W / 2, RX_X + WIN_W / 2, RX_X - RX_LEGS_W / 2, RX_X + RX_LEGS_W / 2]
+    ys = [0, HEIGHT, AXIS_Y, RX_FLOOR, RX_FLOOR + 0.5, RX_FLOOR + 0.5 + WIN_H, RX_FLOOR + RX_BODY_H]
     zs = [0, GROOVE_DEPTH, DEPTH - FRONT_WALL - RX_T, DEPTH - FRONT_WALL, DEPTH - IRIS_DEPTH, DEPTH]
     xs = np.unique(np.round(np.concatenate([xs, fine(LED_X, LED_BORE / 2)]), 4))
     ys = np.unique(np.round(np.concatenate([ys, fine(AXIS_Y, LED_BORE / 2)]), 4))
