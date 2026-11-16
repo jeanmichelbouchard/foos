@@ -37,7 +37,7 @@ RX_W = 5.6               # slot width  (TSSP58038 body measured: 5.0 mm wide, + 
 RX_T = 5.2               # slot thickness along z (body measured: 4.8 mm with the lens)
 RX_FLOOR = AXIS_Y - 3.5  # the receiver body (7 mm high, measured) rests here
 RX_BODY_H = 7.3          # above this height the slot only holds the legs
-RX_LEGS_W = 6.8          # slot width around the legs (they splay out to 5.8 mm, measured)
+RX_LEGS_W = 6.2          # slot width around the legs (they splay out to 5.8 mm, measured)
 FRONT_WALL = 2.0         # plastic in front of the receiver = depth of the window (a small hood)
 WIN_W, WIN_H = 4.0, 6.5   # narrower than the body: the receiver cannot fall out through the window
 
